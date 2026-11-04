@@ -6,6 +6,8 @@
 #   tests/vm-test.sh --release 42    # another Fedora release
 #   tests/vm-test.sh --keep          # leave the VM running afterwards (ssh command is printed)
 #   tests/vm-test.sh --quick         # skip pre-installing Firefox/Chromium/LibreOffice
+#   tests/vm-test.sh --skip-nomachine  # leave NoMachine out (CI: nomachine.com
+#                                      # refuses downloads from GitHub's servers)
 #
 # What it does:
 #   1. Downloads the Fedora Cloud image once (cached in ~/.cache/machine-setup-vm)
@@ -35,6 +37,7 @@ while [ $# -gt 0 ]; do
     --release) RELEASE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
+    --skip-nomachine) SKIP_NOMACHINE=1; shift ;;
     -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -175,8 +178,8 @@ failed_role() {
 }
 
 log "Run 1: ./bootstrap.sh"
-SKIP_TAGS=""
-if vm 'cd ~/machine-setup && ./bootstrap.sh' 2>&1 | tee "$WORK/run1.log"; then
+SKIP_TAGS="${SKIP_NOMACHINE:+nomachine}"
+if vm "cd ~/machine-setup && ./bootstrap.sh ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
@@ -234,8 +237,10 @@ check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-up
 check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
-check "NoMachine installed"             'rpm -q nomachine'
-check "NoMachine server running"        'systemctl is-active --quiet nxserver'
+if [ -z "${SKIP_NOMACHINE:-}" ]; then
+  check "NoMachine installed"             'rpm -q nomachine'
+  check "NoMachine server running"        'systemctl is-active --quiet nxserver'
+fi
 
 # ------------------------------------------------------------ summary
 log "Summary (Fedora $RELEASE)"

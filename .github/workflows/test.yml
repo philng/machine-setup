@@ -73,7 +73,8 @@ jobs:
           key: fedora-cloud-43-v1
 
       - name: Run VM test
-        run: tests/vm-test.sh
+        # nomachine.com redirects downloads from GitHub's servers to its home page.
+        run: tests/vm-test.sh --skip-nomachine
 
       - name: Upload logs
         if: failure()

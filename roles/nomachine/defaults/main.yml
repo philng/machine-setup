@@ -8,6 +8,4 @@ nomachine_deb_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architec
 nomachine_pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
 # Where the latest version number is read from.
 nomachine_version_source: https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/n/nomachine.rb
-# Highest Linux build suffix (_N) probed for the latest version.
-nomachine_max_build: 30
 nomachine_port: 4000
