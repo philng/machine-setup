@@ -31,6 +31,9 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `flatpaks` – Flathub app IDs (Linux GUI apps).
 - `casks` – Homebrew casks (macOS GUI apps).
 - `extra_repos` – `rpmfusion`, `vscode`, `docker` (Linux). `homebrew_taps` on macOS.
+- `mac_apps_remove` – paths of preinstalled Apple apps to delete on macOS (GarageBand, iMovie, iWork).
+  If macOS says "Operation not permitted", give your terminal App Management access in
+  System Settings → Privacy & Security, then re-run.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
 - `nomachine_enabled` – NoMachine server + client from nomachine.com (Linux; a cask on macOS).
   Set `nomachine_url` to pin a specific package.

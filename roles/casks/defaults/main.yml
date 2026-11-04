@@ -4,3 +4,4 @@ casks_remove: []
 # Some casks run an installer that needs sudo. bootstrap.sh asks for the
 # password and passes it in this environment variable.
 casks_sudo_password: "{{ lookup('ansible.builtin.env', 'MACHINE_SETUP_SUDO_PASS') }}"
+mac_apps_remove: []

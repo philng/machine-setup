@@ -14,3 +14,15 @@
     sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
   when: casks_remove | length > 0
   no_log: "{{ casks_sudo_password | length > 0 }}"
+
+# Apple's free App Store apps (GarageBand, iMovie, iWork) aren't casks, so
+# they are removed by path. They are root-owned, hence sudo.
+- name: Remove preinstalled Apple apps
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ mac_apps_remove }}"
+  become: true
+  vars:
+    ansible_become_password: "{{ casks_sudo_password }}"
+  no_log: "{{ casks_sudo_password | length > 0 }}"

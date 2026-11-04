@@ -93,6 +93,18 @@ casks_remove:
   - chromium
   - libreoffice
 
+# Preinstalled Apple apps to delete (paths). Built-in apps like Safari or Mail
+# live on the read-only system volume and can't be removed.
+mac_apps_remove:
+  - /Applications/GarageBand.app
+  - /Library/Application Support/GarageBand
+  - /Library/Application Support/Logic
+  - /Library/Audio/Apple Loops       # GarageBand's sound library (several GB)
+  - /Applications/iMovie.app
+  - /Applications/Pages.app
+  - /Applications/Numbers.app
+  - /Applications/Keynote.app
+
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
 
