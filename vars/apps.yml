@@ -178,6 +178,10 @@ nerd_fonts:
 # starter ~/.zshrc and ~/.zsh_plugins.txt only if you don't have them.
 zsh_enabled: true
 
+# Ghostty terminal theme, written to a starter ~/.config/ghostty/config only
+# if you don't have one. Matches the Catppuccin Mocha vim scheme.
+ghostty_theme: "Catppuccin Mocha"
+
 # vim with the vim-plug plugin manager. Creates a starter ~/.vimrc only if
 # you don't have one.
 vim_enabled: true

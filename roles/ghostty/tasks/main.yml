@@ -1,0 +1,22 @@
+---
+# Starter Ghostty config (Linux and macOS). An existing config is never
+# overwritten; edit ~/.config/ghostty/config to change it.
+- name: Create a starter Ghostty config for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Create ~/.config/ghostty
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.config/ghostty"
+        state: directory
+        mode: "0755"
+
+    - name: Write ~/.config/ghostty/config
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.config/ghostty/config"
+        force: false
+        mode: "0644"
+        content: |
+          # Created by machine-setup. Edit freely; it won't be overwritten.
+          # List themes with: ghostty +list-themes
+          theme = {{ ghostty_theme }}

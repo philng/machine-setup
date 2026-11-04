@@ -44,6 +44,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   activates mise; with your own `.zshrc`, add `eval "$(mise activate zsh)"`.
 - `claude_code_enabled` – Claude Code via Anthropic's native installer (`~/.local/bin/claude`,
   updates itself). The Claude desktop app is the `claude` cask on macOS.
+- `ghostty_theme` – theme for a starter `~/.config/ghostty/config` (only created if missing).
 - `vim_enabled` – vim-plug for vim; a starter `~/.vimrc` is created only if missing.
 - `nerd_fonts` – Nerd Fonts installed into `~/.local/share/fonts` on Linux (casks on macOS).
 - `zsh_enabled` – zsh as your login shell plus the antidote plugin manager. A starter
@@ -60,7 +61,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run
 ```
 
-Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `vim`, `fonts`, `mise`, `claude`.
+Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`.
 
 ## Layout
 
@@ -76,6 +77,7 @@ roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/dotfiles        optional dotfiles checkout
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
+roles/ghostty         starter Ghostty config
 roles/fonts           Nerd Fonts (Linux)
 roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)

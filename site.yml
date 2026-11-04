@@ -45,6 +45,9 @@
     - role: vim           # vim-plug + starter ~/.vimrc (after dotfiles)
       tags: vim
       when: vim_enabled | bool
+    - role: ghostty       # starter config with the Catppuccin Mocha theme
+      tags: ghostty
+      when: ghostty_theme | default('') | length > 0
     - role: mise          # mise + uv (Linux and macOS)
       tags: mise
       when: mise_enabled | bool
