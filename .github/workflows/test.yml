@@ -34,7 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run the setup and check the result
-        run: tests/mac-test.sh
+        # nomachine.com redirects downloads from GitHub's servers to its home page.
+        run: tests/mac-test.sh --skip-nomachine
 
   windows:
     runs-on: windows-2025
