@@ -234,7 +234,7 @@ check "mise and uv installed"            '.local/bin/mise --version && .local/bi
 check "fzf, bat, btop and eza installed"  'command -v fzf && command -v bat && command -v btop && command -v eza'
 check "dnf-automatic timer enabled"     'systemctl list-unit-files --state=enabled "dnf*-automatic.timer" | grep -q automatic'
 check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
-check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q gstreamer1-libav'
+check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q --whatprovides gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
 if [ -z "${SKIP_NOMACHINE:-}" ]; then
