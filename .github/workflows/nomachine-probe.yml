@@ -13,14 +13,14 @@ jobs:
       - name: What the download server returns
         run: |
           u=https://download.nomachine.com/download/9.8/Linux/nomachine_9.8.2_1_x86_64.rpm
-          echo "--- Linux guess, headers"; curl -sI "$u" | head -12
-          echo "--- Mac dmg from the cask"; curl -sI https://download.nomachine.com/download/9.8/MacOSX/nomachine_9.8.2_1.dmg | head -12
-          echo "--- AUR PKGBUILD"; curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=nomachine" | grep -Ei 'pkgver|_build|source|nomachine.com|x86_64' | head -20
-          for p in "https://downloads.nomachine.com/download/?id=1" "https://downloads.nomachine.com/download/?id=2" "https://downloads.nomachine.com/linux/?id=1" "https://www.nomachine.com/download/download&id=1" "https://www.nomachine.com/dwl_nm_bann.php"; do
-            echo "--- $p"
-            curl -sL "$p" | grep -oE '[A-Za-z0-9_./:?=&-]*(nomachine_[0-9][^"<> ]*|9[.]8[.][0-9_]+[^"<> ]*)' | sort -u | head -15
+          t=https://download.nomachine.com/download/9.8/Linux/nomachine_9.8.2_1_x86_64.tar.gz
+          for url in "$u" "$t" https://web9001.nomachine.com/download/9.8/Linux/nomachine_9.8.2_1_x86_64.rpm; do
+            echo "=== $url (curl default UA)"; curl -sIL "$url" | grep -iE '^(HTTP|location|content-type|content-length)'
+            echo "=== $url (Wget UA)"; curl -sIL -A 'Wget/1.21' "$url" | grep -iE '^(HTTP|location|content-type|content-length)'
           done
+          echo "=== body via GET -L"; curl -sL -A 'Wget/1.21' "$u" -o /tmp/nm; file /tmp/nm; ls -l /tmp/nm; head -c 600 /tmp/nm | strings | head -20
       - name: Run the role in a Fedora container
+        if: false
         run: |
           docker run --rm -v "$PWD:/src" -w /src fedora:latest bash -c '
             dnf -y -q install ansible-core python3-libdnf5 &&
