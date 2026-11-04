@@ -9,8 +9,9 @@
   when: "'nomachine' not in ansible_facts.packages"
   block:
     # nomachine.com renders its download links with JavaScript, so the latest
-    # version is read from the Homebrew cask (same version on every platform)
-    # and the Linux link is built from it.
+    # version is read from the Homebrew cask. The build suffix (_N) differs
+    # between the Mac and Linux packages, so candidate Linux links are probed
+    # and the newest one that is really a package (not an HTML page) is used.
     - name: Look up the latest NoMachine version
       ansible.builtin.uri:
         url: "{{ nomachine_version_source }}"
@@ -19,62 +20,77 @@
       failed_when: false
       when: nomachine_url | length == 0
 
-    - name: Pick the package link for this machine
+    - name: Work out the candidate package links
       vars:
         nm_version: >-
           {{ nomachine_cask.content | default('')
-             | regex_findall('version "([0-9]+[.][0-9]+[.][0-9]+_[0-9]+)"')
+             | regex_findall('version "([0-9]+[.][0-9]+[.][0-9]+)_[0-9]+"')
              | default([''], true) | first }}
         nm_major_minor: "{{ nm_version.split('.')[:2] | join('.') }}"
-        nm_file: >-
-          {{ 'nomachine_' + nm_version + '_' +
-             (nomachine_arch + '.rpm' if ansible_os_family == 'RedHat' else nomachine_deb_arch + '.deb') }}
+        nm_suffix: "{{ nomachine_arch + '.rpm' if ansible_os_family == 'RedHat' else nomachine_deb_arch + '.deb' }}"
+      ansible.builtin.set_fact:
+        nomachine_candidates: >-
+          {{ [] if nm_version | length == 0 else
+             range(1, nomachine_max_build + 1)
+             | map('string')
+             | map('regex_replace', '^', 'https://download.nomachine.com/download/' + nm_major_minor
+                                         + '/Linux/nomachine_' + nm_version + '_')
+             | map('regex_replace', '$', '_' + nm_suffix)
+             | list }}
+      when: nomachine_url | length == 0
+
+    - name: Probe the candidate links
+      ansible.builtin.uri:
+        url: "{{ item }}"
+        method: HEAD
+      register: nomachine_probe
+      failed_when: false
+      loop: "{{ nomachine_candidates | default([]) }}"
+      when: nomachine_url | length == 0
+
+    - name: Pick the package link for this machine
       ansible.builtin.set_fact:
         nomachine_pkg_url: >-
           {{ nomachine_url if nomachine_url | length > 0 else
-             ('https://download.nomachine.com/download/' + nm_major_minor + '/Linux/' + nm_file
-              if nm_version | length > 0 else '') }}
-
-    - name: Check that the package exists
-      ansible.builtin.uri:
-        url: "{{ nomachine_pkg_url }}"
-        method: HEAD
-      register: nomachine_head
-      failed_when: false
-      when:
-        - nomachine_url | length == 0
-        - nomachine_pkg_url | length > 0
-
-    - name: Drop the link if it doesn't resolve
-      ansible.builtin.set_fact:
-        nomachine_pkg_url: ""
-      when:
-        - nomachine_url | length == 0
-        - nomachine_head.status | default(200) != 200
+             (nomachine_probe.results | default([])
+              | selectattr('status', 'defined')
+              | selectattr('status', 'equalto', 200)
+              | selectattr('content_type', 'defined')
+              | rejectattr('content_type', 'search', 'text/html')
+              | map(attribute='item') | list | last | default('')) }}
 
     - name: Warn if no download link was found
       ansible.builtin.debug:
         msg:
           - "Couldn't find a NoMachine {{ nomachine_pkg_ext }} for {{ ansible_architecture }}, so NoMachine was skipped."
           - "Set nomachine_url in vars/apps.yml to a direct package link and re-run."
-          - "Version lookup status: {{ nomachine_cask.status | default('skipped') }}, package check status: {{ nomachine_head.status | default('skipped') }}"
+          - "Version lookup status: {{ nomachine_cask.status | default('skipped') }}"
+          - "Probed: {{ nomachine_probe.results | default([]) | map(attribute='status', default='?') | list }}"
+          - "Content types: {{ nomachine_probe.results | default([]) | map(attribute='content_type', default='?') | unique | list }}"
       when: nomachine_pkg_url | length == 0
 
-    - name: Install NoMachine (RPM)
-      ansible.builtin.dnf:
-        name: "{{ nomachine_pkg_url }}"
-        state: present
-        disable_gpg_check: true   # NoMachine doesn't sign its RPMs; fetched over HTTPS
-      when:
-        - ansible_os_family == 'RedHat'
-        - nomachine_pkg_url | length > 0
+    # A bad download shouldn't stop the rest of the setup.
+    - name: Install NoMachine
+      when: nomachine_pkg_url | length > 0
+      block:
+        - name: Install NoMachine (RPM)
+          ansible.builtin.dnf:
+            name: "{{ nomachine_pkg_url }}"
+            state: present
+            disable_gpg_check: true   # NoMachine doesn't sign its RPMs; fetched over HTTPS
+          when: ansible_os_family == 'RedHat'
 
-    - name: Install NoMachine (deb)
-      ansible.builtin.apt:
-        deb: "{{ nomachine_pkg_url }}"
-      when:
-        - ansible_os_family == 'Debian'
-        - nomachine_pkg_url | length > 0
+        - name: Install NoMachine (deb)
+          ansible.builtin.apt:
+            deb: "{{ nomachine_pkg_url }}"
+          when: ansible_os_family == 'Debian'
+      rescue:
+        - name: Warn that NoMachine failed to install
+          ansible.builtin.debug:
+            msg:
+              - "Installing NoMachine from {{ nomachine_pkg_url }} failed, so it was skipped:"
+              - "{{ ansible_failed_result.msg | default('') }}"
+              - "Set nomachine_url in vars/apps.yml to a direct package link and re-run."
 
 - name: Check for firewalld
   ansible.builtin.service_facts:
