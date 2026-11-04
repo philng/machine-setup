@@ -31,7 +31,11 @@
           {% for p in vim_plugins %}
           Plug '{{ p }}'
           {% endfor %}
+          Plug 'catppuccin/vim', { 'as': 'catppuccin' }
           call plug#end()
+
+          set termguicolors
+          silent! colorscheme catppuccin_mocha
 
           set number
           set autoindent expandtab softtabstop=2 shiftwidth=2 tabstop=2
