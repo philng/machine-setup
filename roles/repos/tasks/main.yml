@@ -1,0 +1,15 @@
+---
+- name: Check that every requested repo is known
+  ansible.builtin.assert:
+    that: extra_repos | difference(known_repos) | length == 0
+    fail_msg: "Unknown repo(s): {{ extra_repos | difference(known_repos) }}. Known: {{ known_repos }}"
+    quiet: true
+
+- name: Add repos for {{ ansible_os_family }}
+  ansible.builtin.include_tasks: "{{ ansible_os_family }}.yml"
+  when: ansible_os_family in ['RedHat', 'Debian', 'Darwin']
+
+- name: Warn about unsupported distro
+  ansible.builtin.debug:
+    msg: "No repo definitions for {{ ansible_os_family }}; skipping extra repos."
+  when: ansible_os_family not in ['RedHat', 'Debian', 'Darwin']

@@ -1,0 +1,77 @@
+---
+# The one file you normally edit.
+#
+# Linux (Fedora, Debian/Ubuntu): CLI tools come from dnf/apt, GUI apps from Flathub.
+# macOS: CLI tools are Homebrew formulae, GUI apps are Homebrew casks.
+
+# ---------------------------------------------------------------- Linux repos
+# Third-party repos to enable. Known keys: rpmfusion, vscode, docker
+# (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
+extra_repos:
+  - rpmfusion
+  - vscode
+  # - docker
+
+# ------------------------------------------------------------ CLI packages
+# Installed with dnf/apt on Linux and as Homebrew formulae on macOS.
+# Use a generic name; package_name_map below fixes names that differ.
+packages:
+  - git
+  - vim
+  - htop
+  - ripgrep
+  - fd
+  - curl
+  - tmux
+  - code            # from the vscode repo
+  # - docker-ce     # needs the docker repo above
+
+# Native packages to make sure are NOT installed.
+packages_remove: []
+  # - gnome-tour
+
+# Generic name -> name on each OS family. Map to "" to skip it there
+# (e.g. VS Code is a cask on macOS, not a formula).
+package_name_map:
+  RedHat:
+    vim: vim-enhanced
+    fd: fd-find
+  Debian:
+    fd: fd-find
+  Darwin:
+    code: ""
+    docker-ce: ""
+
+# ------------------------------------------------------- GUI apps (Linux)
+# GUI apps from Flathub (use the app ID from flathub.org).
+flatpaks:
+  - org.mozilla.firefox
+  - org.videolan.VLC
+
+flatpaks_remove: []
+
+# ------------------------------------------------------- GUI apps (macOS)
+# Homebrew casks (names from formulae.brew.sh/cask).
+casks:
+  - firefox
+  - vlc
+  - visual-studio-code
+
+casks_remove: []
+
+# Extra Homebrew taps, e.g. "homebrew/cask-fonts".
+homebrew_taps: []
+
+# ------------------------------------------------------------ Linux system
+# systemd services to enable and start.
+services_enabled: []
+  # - docker
+
+# Extra groups for your user (e.g. docker). Takes effect after logging out.
+user_groups: []
+  # - docker
+
+# Optional dotfiles role (off by default).
+dotfiles_enabled: false
+dotfiles_repo: https://github.com/philng/dotfiles.git
+dotfiles_dest: "~/.dotfiles"

@@ -1,0 +1,32 @@
+---
+- name: Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Install packages
+  ansible.builtin.package:
+    name: "{{ packages_resolved }}"
+    state: present
+  when: packages_resolved | length > 0
+
+- name: Remove unwanted packages
+  ansible.builtin.package:
+    name: "{{ packages_remove_resolved }}"
+    state: absent
+  when: packages_remove_resolved | length > 0
+
+- name: Enable and start services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ services_enabled }}"
+
+- name: Add extra groups for {{ target_user }}
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    groups: "{{ user_groups }}"
+    append: true
+  when: user_groups | length > 0

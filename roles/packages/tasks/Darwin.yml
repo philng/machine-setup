@@ -1,0 +1,12 @@
+---
+- name: Install Homebrew formulae
+  community.general.homebrew:
+    name: "{{ packages_resolved }}"
+    state: present
+  when: packages_resolved | length > 0
+
+- name: Remove unwanted Homebrew formulae
+  community.general.homebrew:
+    name: "{{ packages_remove_resolved }}"
+    state: absent
+  when: packages_remove_resolved | length > 0

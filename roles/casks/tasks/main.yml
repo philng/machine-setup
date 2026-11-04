@@ -1,0 +1,16 @@
+---
+- name: Install Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ casks }}"
+    state: present
+    sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
+  when: casks | length > 0
+  no_log: "{{ casks_sudo_password | length > 0 }}"
+
+- name: Remove Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ casks_remove }}"
+    state: absent
+    sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
+  when: casks_remove | length > 0
+  no_log: "{{ casks_sudo_password | length > 0 }}"

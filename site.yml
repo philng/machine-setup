@@ -1,0 +1,40 @@
+---
+# Set up this machine. Safe to re-run.
+#   ansible-playbook site.yml -K                  # everything
+#   ansible-playbook site.yml -K --tags flatpak   # one part
+#   ansible-playbook site.yml -K --check --diff   # dry run
+- name: Set up workstation
+  hosts: local
+  vars_files:
+    - vars/apps.yml
+  vars:
+    # The user who ran the playbook (lookups run before privilege escalation).
+    target_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
+    # Linux needs root for dnf/apt/flatpak. Homebrew refuses to run as root.
+    # (Set per role because facts aren't known yet at the play level.)
+    use_sudo: "{{ ansible_os_family != 'Darwin' }}"
+
+  pre_tasks:
+    - name: Show detected OS
+      ansible.builtin.debug:
+        msg: "{{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_os_family }})"
+      tags: always
+
+  roles:
+    - role: repos         # Linux repos, or Homebrew taps on macOS
+      become: "{{ use_sudo }}"
+      tags: repos
+    - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
+      become: "{{ use_sudo }}"
+      tags: packages
+    - role: flatpak       # GUI apps on Linux
+      become: "{{ use_sudo }}"
+      tags: flatpak
+      when: ansible_os_family != 'Darwin'
+    - role: casks         # GUI apps on macOS
+      become: "{{ use_sudo }}"
+      tags: casks
+      when: ansible_os_family == 'Darwin'
+    - role: dotfiles
+      tags: dotfiles
+      when: dotfiles_enabled | bool
