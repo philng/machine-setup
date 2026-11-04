@@ -42,6 +42,9 @@
       when:
         - ansible_os_family != 'Darwin'
         - jetbrains_toolbox_enabled | bool
+    - role: vim           # vim-plug + starter ~/.vimrc (after dotfiles)
+      tags: vim
+      when: vim_enabled | bool
     - role: claude_code   # Claude Code CLI, native installer (Linux and macOS)
       tags: claude
       when: claude_code_enabled | bool

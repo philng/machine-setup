@@ -41,6 +41,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `claude_code_enabled` – Claude Code via Anthropic's native installer (`~/.local/bin/claude`,
   updates itself). The Claude desktop app is the `claude` cask on macOS.
+- `vim_enabled` – vim-plug for vim; a starter `~/.vimrc` is created only if missing.
 - `zsh_enabled` – zsh as your login shell plus the antidote plugin manager. A starter
   `~/.zshrc` and `~/.zsh_plugins.txt` are created only if missing; add plugins to the latter.
 - `services_enabled`, `user_groups` – e.g. `docker` (Linux).
@@ -55,7 +56,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run
 ```
 
-Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `claude`.
+Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `vim`, `claude`.
 
 ## Layout
 
@@ -70,6 +71,7 @@ roles/nomachine       NoMachine from nomachine.com (Linux)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/dotfiles        optional dotfiles checkout
 roles/zsh             antidote + zsh login shell
+roles/vim             vim-plug + starter ~/.vimrc
 roles/claude_code     Claude Code CLI (native installer)
 bootstrap.sh          first-run installer
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM

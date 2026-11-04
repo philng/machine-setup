@@ -1,0 +1,44 @@
+---
+# vim itself is installed by the packages role (it's in vars/apps.yml).
+# This role installs the vim-plug plugin manager. An existing ~/.vimrc is
+# never overwritten.
+- name: Set up vim-plug for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Create ~/.vim/autoload
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.vim/autoload"
+        state: directory
+        mode: "0755"
+
+    - name: Install vim-plug
+      ansible.builtin.get_url:
+        url: "{{ vim_plug_url }}"
+        dest: "{{ ansible_env.HOME }}/.vim/autoload/plug.vim"
+        mode: "0644"
+        force: false   # update later with :PlugUpgrade
+
+    - name: Create a starter .vimrc
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.vimrc"
+        force: false
+        mode: "0644"
+        content: |
+          " Created by machine-setup. Edit freely; it won't be overwritten.
+          " Add plugins below, then run :PlugInstall inside vim.
+          call plug#begin()
+          {% for p in vim_plugins %}
+          Plug '{{ p }}'
+          {% endfor %}
+          call plug#end()
+
+          set number
+          set expandtab shiftwidth=4 tabstop=4
+      register: vimrc
+
+    - name: Install the starter plugins  # noqa: no-handler (runs only right after creating .vimrc)
+      ansible.builtin.command: vim -es -u {{ ansible_env.HOME }}/.vimrc -i NONE -c PlugInstall -c qa
+      when: vimrc is changed
+      changed_when: true
+      failed_when: false   # plugins can be installed later with :PlugInstall

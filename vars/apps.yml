@@ -19,6 +19,10 @@ extra_repos:
 packages:
   - git                    # needed to update this repo
   - zsh
+  - vim                    # vim-enhanced on Fedora
+  # Google Drive in Files on Linux (no official Linux client): sign in under
+  # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
+  - gvfs-goa
   - podman
   # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
   # sandbox gets in the way of terminals, SDKs and language servers.
@@ -57,11 +61,14 @@ packages_remove:
 
 # Generic name -> name on each OS family. Map to "" to skip it there.
 package_name_map:
-  RedHat: {}
+  RedHat:
+    vim: vim-enhanced
   Debian:
+    gvfs-goa: gvfs-backends
     ghostty: ""            # no official Debian/Ubuntu package
   Darwin:                  # these are casks on macOS (zsh is built in)
     zsh: ""
+    gvfs-goa: ""
     code: ""
     ghostty: ""
     docker-ce: ""
@@ -95,6 +102,7 @@ casks:
   - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
   - claude                 # Claude desktop app
+  - google-drive
 
 casks_remove:
   - firefox
@@ -146,6 +154,10 @@ claude_code_enabled: true
 # zsh as your login shell, with the antidote plugin manager. Creates a
 # starter ~/.zshrc and ~/.zsh_plugins.txt only if you don't have them.
 zsh_enabled: true
+
+# vim with the vim-plug plugin manager. Creates a starter ~/.vimrc only if
+# you don't have one.
+vim_enabled: true
 
 # Optional dotfiles role (off by default).
 dotfiles_enabled: false
