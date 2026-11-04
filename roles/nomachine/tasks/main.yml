@@ -27,11 +27,15 @@
               | regex_findall('https://[a-z0-9.]*download[.]nomachine[.]com/download/[0-9.]+/Linux/' + nomachine_pkg_regex)
               | first | default('')) }}
 
-    - name: Fail if no download link was found
-      ansible.builtin.fail:
-        msg: >-
-          Couldn't find a NoMachine {{ nomachine_pkg_ext }} for {{ ansible_architecture }} on nomachine.com.
-          Set nomachine_url in vars/apps.yml to a direct package link.
+    - name: Warn if no download link was found
+      ansible.builtin.debug:
+        msg:
+          - "Couldn't find a NoMachine {{ nomachine_pkg_ext }} for {{ ansible_architecture }} on nomachine.com, so NoMachine was skipped."
+          - "Set nomachine_url in vars/apps.yml to a direct package link and re-run."
+          - "Pages checked (status, package links seen):"
+          - "{{ nomachine_pages.results | default([]) | map(attribute='status', default='?') | list }}"
+          - "{{ nomachine_pages.results | default([]) | map(attribute='content', default='') | join(' ')
+               | regex_findall('[A-Za-z0-9_./:-]*nomachine_[0-9][A-Za-z0-9_.-]*') | unique | list }}"
       when: nomachine_pkg_url | length == 0
 
     - name: Install NoMachine (RPM)
@@ -39,12 +43,16 @@
         name: "{{ nomachine_pkg_url }}"
         state: present
         disable_gpg_check: true   # NoMachine doesn't sign its RPMs; fetched over HTTPS
-      when: ansible_os_family == 'RedHat'
+      when:
+        - ansible_os_family == 'RedHat'
+        - nomachine_pkg_url | length > 0
 
     - name: Install NoMachine (deb)
       ansible.builtin.apt:
         deb: "{{ nomachine_pkg_url }}"
-      when: ansible_os_family == 'Debian'
+      when:
+        - ansible_os_family == 'Debian'
+        - nomachine_pkg_url | length > 0
 
 - name: Check for firewalld
   ansible.builtin.service_facts:
