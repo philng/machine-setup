@@ -35,7 +35,7 @@ while [ $# -gt 0 ]; do
     --release) RELEASE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
