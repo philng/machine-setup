@@ -59,7 +59,7 @@ packages_remove:
   - gnome-characters
   - yelp                   # Help viewer
   - "rhythmbox*"
-  - "totem*"               # Videos (older Fedora)
+  - totem                  # Videos (older Fedora). Not totem*: that would hit totem-pl-parser, a library GNOME needs
   - showtime               # Videos (newer Fedora)
   - cheese
   - snapshot               # Camera
