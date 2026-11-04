@@ -58,11 +58,12 @@ run() { if (exec </dev/tty) 2>/dev/null; then "$@" </dev/tty; else "$@"; fi; }
 
 if [ "$OS" = "Darwin" ]; then
   # Homebrew runs as you, but some cask installers need sudo.
-  if [ -z "${MACHINE_SETUP_SUDO_PASS:-}" ]; then
+  # (Skipped when sudo needs no password, e.g. a CI runner.)
+  if [ -z "${MACHINE_SETUP_SUDO_PASS:-}" ] && ! { sudo -k && sudo -n true 2>/dev/null; }; then
     read -rsp "Password for sudo (used by cask installers): " MACHINE_SETUP_SUDO_PASS </dev/tty
     echo
   fi
-  MACHINE_SETUP_SUDO_PASS="$MACHINE_SETUP_SUDO_PASS" run ansible-playbook site.yml "$@"
+  MACHINE_SETUP_SUDO_PASS="${MACHINE_SETUP_SUDO_PASS:-}" run ansible-playbook site.yml "$@"
 elif sudo -k && sudo -n true 2>/dev/null; then
   # Passwordless sudo (e.g. a test VM): don't ask for a password.
   # (sudo -k drops the cached login from above so this tests for NOPASSWD.)
