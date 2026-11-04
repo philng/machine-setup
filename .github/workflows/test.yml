@@ -38,7 +38,6 @@ jobs:
         run: tests/mac-test.sh --skip-nomachine
 
   windows:
-    if: github.event_name != 'pull_request'   # already green; saves minutes while the macOS job is fixed
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +53,6 @@ jobs:
         run: ./windows/bootstrap.ps1 -CheckOnly
 
   fedora-vm:
-    if: github.event_name != 'pull_request'   # already green; saves minutes while the macOS job is fixed
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
