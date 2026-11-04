@@ -1,0 +1,58 @@
+---
+# zsh itself is installed by the packages role (it's in vars/apps.yml).
+# This role adds the antidote plugin manager and makes zsh your login shell.
+# Existing ~/.zshrc and ~/.zsh_plugins.txt are never overwritten.
+- name: Set up antidote for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Install antidote  # noqa: latest[git] (cloned once; update with `antidote update`)
+      ansible.builtin.git:
+        repo: "{{ antidote_repo }}"
+        dest: "{{ antidote_dir }}"
+        depth: 1
+        update: false   # update later with: antidote update
+
+    - name: Create a starter plugin list
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.zsh_plugins.txt"
+        content: "{{ antidote_plugins | join('\n') }}\n"
+        force: false
+        mode: "0644"
+
+    - name: Create a starter .zshrc that loads antidote
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.zshrc"
+        force: false
+        mode: "0644"
+        content: |
+          # Created by machine-setup. Edit freely; it won't be overwritten.
+          HISTFILE=~/.zsh_history
+          HISTSIZE=50000
+          SAVEHIST=50000
+          setopt share_history hist_ignore_dups autocd
+          path=(~/.local/bin $path)   # Claude Code and other user tools
+
+          # Plugins: list them in ~/.zsh_plugins.txt
+          source {{ antidote_dir }}/antidote.zsh
+          antidote load
+
+          autoload -Uz compinit && compinit
+          bindkey '^[[A' history-substring-search-up
+          bindkey '^[[B' history-substring-search-down
+
+- name: Find zsh
+  ansible.builtin.command: which zsh
+  register: zsh_path
+  changed_when: false
+  when: zsh_set_default_shell | bool
+
+# macOS already uses zsh as the login shell.
+- name: Make zsh the login shell for {{ target_user }}
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    shell: "{{ zsh_path.stdout }}"
+  become: true
+  when:
+    - zsh_set_default_shell | bool
+    - ansible_os_family != 'Darwin'

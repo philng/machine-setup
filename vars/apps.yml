@@ -18,6 +18,7 @@ extra_repos:
 # Use a generic name; package_name_map below fixes names that differ.
 packages:
   - git                    # needed to update this repo
+  - zsh
   - podman
   # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
   # sandbox gets in the way of terminals, SDKs and language servers.
@@ -59,7 +60,8 @@ package_name_map:
   RedHat: {}
   Debian:
     ghostty: ""            # no official Debian/Ubuntu package
-  Darwin:                  # these are casks on macOS
+  Darwin:                  # these are casks on macOS (zsh is built in)
+    zsh: ""
     code: ""
     ghostty: ""
     docker-ce: ""
@@ -92,6 +94,7 @@ casks:
   - visual-studio-code
   - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
+  - claude                 # Claude desktop app
 
 casks_remove:
   - firefox
@@ -133,6 +136,16 @@ services_enabled:
 # Extra groups for your user. Takes effect after logging out and back in.
 user_groups:
   - docker
+
+# ------------------------------------------------------------- Claude Code
+# Installed with Anthropic's native installer into ~/.local/bin (auto-updates).
+# The Claude desktop app is the "claude" cask on macOS.
+claude_code_enabled: true
+
+# ------------------------------------------------------------------- Shell
+# zsh as your login shell, with the antidote plugin manager. Creates a
+# starter ~/.zshrc and ~/.zsh_plugins.txt only if you don't have them.
+zsh_enabled: true
 
 # Optional dotfiles role (off by default).
 dotfiles_enabled: false

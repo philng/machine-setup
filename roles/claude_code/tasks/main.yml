@@ -1,0 +1,29 @@
+---
+# Claude Code via Anthropic's native installer (Linux and macOS). It installs
+# to ~/.local/bin/claude and keeps itself up to date.
+- name: Install Claude Code for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Check whether Claude Code is installed
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.local/bin/claude"
+      register: claude_bin
+
+    - name: Download the Claude Code installer
+      ansible.builtin.get_url:
+        url: "{{ claude_code_installer }}"
+        dest: "{{ ansible_env.HOME }}/.cache/claude-install.sh"
+        mode: "0700"
+      when: not claude_bin.stat.exists
+
+    - name: Run the Claude Code installer
+      ansible.builtin.command:
+        cmd: bash {{ ansible_env.HOME }}/.cache/claude-install.sh
+        creates: "{{ ansible_env.HOME }}/.local/bin/claude"
+      when: not claude_bin.stat.exists
+
+    - name: Remove the installer
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.cache/claude-install.sh"
+        state: absent

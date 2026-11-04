@@ -42,6 +42,9 @@
       when:
         - ansible_os_family != 'Darwin'
         - jetbrains_toolbox_enabled | bool
+    - role: claude_code   # Claude Code CLI, native installer (Linux and macOS)
+      tags: claude
+      when: claude_code_enabled | bool
     - role: casks         # GUI apps on macOS
       become: "{{ use_sudo }}"
       tags: casks
@@ -49,3 +52,6 @@
     - role: dotfiles
       tags: dotfiles
       when: dotfiles_enabled | bool
+    - role: zsh           # antidote + zsh as login shell (after dotfiles)
+      tags: zsh
+      when: zsh_enabled | bool
