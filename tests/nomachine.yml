@@ -1,0 +1,7 @@
+# Runs only the NoMachine role (used by the quick probe workflow).
+- name: NoMachine only
+  hosts: local
+  vars:
+    nomachine_enabled: true
+  roles:
+    - nomachine
