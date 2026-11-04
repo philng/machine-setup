@@ -194,6 +194,8 @@ check "antidote loads in zsh"            'zsh -ic "type antidote"'
 check "Claude Code installed"            'test -x .local/bin/claude && .local/bin/claude --version'
 check "vim and vim-plug installed"       'vim --version >/dev/null && test -f .vim/autoload/plug.vim'
 check "vim plugins installed"            'test -d .vim/plugged/vim-sensible'
+check "gh installed"                     'gh --version'
+check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
 check "NoMachine installed"             'rpm -q nomachine'
 check "NoMachine server running"        'systemctl is-active --quiet nxserver'
 

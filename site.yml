@@ -48,6 +48,9 @@
     - role: claude_code   # Claude Code CLI, native installer (Linux and macOS)
       tags: claude
       when: claude_code_enabled | bool
+    - role: fonts         # Nerd Fonts (Linux; casks on macOS)
+      tags: fonts
+      when: ansible_os_family != 'Darwin'
     - role: casks         # GUI apps on macOS
       become: "{{ use_sudo }}"
       tags: casks

@@ -20,6 +20,8 @@ packages:
   - git                    # needed to update this repo
   - zsh
   - vim                    # vim-enhanced on Fedora
+  - gh                     # GitHub CLI
+  - fontconfig             # fc-cache, used by the fonts role
   # Google Drive in Files on Linux (no official Linux client): sign in under
   # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
   - gvfs-goa
@@ -68,6 +70,7 @@ package_name_map:
     ghostty: ""            # no official Debian/Ubuntu package
   Darwin:                  # these are casks on macOS (zsh is built in)
     zsh: ""
+    fontconfig: ""
     gvfs-goa: ""
     code: ""
     ghostty: ""
@@ -103,6 +106,7 @@ casks:
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
   - claude                 # Claude desktop app
   - google-drive
+  - font-jetbrains-mono-nerd-font
 
 casks_remove:
   - firefox
@@ -149,6 +153,13 @@ user_groups:
 # Installed with Anthropic's native installer into ~/.local/bin (auto-updates).
 # The Claude desktop app is the "claude" cask on macOS.
 claude_code_enabled: true
+
+# ------------------------------------------------------------------- Fonts
+# Nerd Fonts for Linux, installed into ~/.local/share/fonts. Names are the
+# archive names on github.com/ryanoasis/nerd-fonts/releases. On macOS add
+# the font-*-nerd-font cask instead.
+nerd_fonts:
+  - JetBrainsMono
 
 # ------------------------------------------------------------------- Shell
 # zsh as your login shell, with the antidote plugin manager. Creates a

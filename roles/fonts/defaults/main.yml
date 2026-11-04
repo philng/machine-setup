@@ -1,0 +1,5 @@
+---
+# Nerd Fonts to install on Linux (archive names from
+# https://github.com/ryanoasis/nerd-fonts/releases). macOS uses casks.
+nerd_fonts: []
+nerd_fonts_url: https://github.com/ryanoasis/nerd-fonts/releases/latest/download
