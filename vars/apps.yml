@@ -11,7 +11,7 @@ extra_repos:
   - docker
   - vscode
   - ghostty                # community COPR on Fedora
-  # - rpmfusion     # codecs etc. on Fedora
+  - rpmfusion              # codecs and drivers on Fedora
 
 # ------------------------------------------------------------ CLI packages
 # Installed with dnf/apt on Linux and as Homebrew formulae on macOS.
@@ -26,6 +26,10 @@ packages:
   - btop                   # system monitor
   - eza                    # nicer ls
   - fontconfig             # fc-cache, used by the fonts role
+  - git-delta              # nicer git diffs (configured by the git role)
+  - pciutils               # lspci, used to detect GPUs
+  - python3-psutil         # needed to change GNOME settings
+  - gnome-shell-extension-appindicator   # tray icons in the top bar
   # Google Drive in Files on Linux (no official Linux client): sign in under
   # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
   - gvfs-goa
@@ -76,6 +80,9 @@ package_name_map:
   Darwin:                  # these are casks on macOS (zsh is built in)
     zsh: ""
     fontconfig: ""
+    pciutils: ""
+    python3-psutil: ""
+    gnome-shell-extension-appindicator: ""
     gvfs-goa: ""
     code: ""
     ghostty: ""
@@ -144,6 +151,34 @@ nomachine_enabled: true
 # Downloaded from jetbrains.com into ~/.local/share/JetBrains/Toolbox and
 # self-updating. Install IntelliJ IDEA from its window on first launch.
 jetbrains_toolbox_enabled: true
+
+# ------------------------------------------------------------------- GNOME
+# Desktop settings (skipped without GNOME). Find keys with `gsettings list-recursively`
+# or dconf Editor; text values need inner single quotes.
+gnome_settings:
+  /org/gnome/desktop/interface/color-scheme: "'prefer-dark'"
+  /org/gnome/desktop/interface/gtk-theme: "'Adwaita-dark'"   # older GTK3 apps
+
+# GNOME extensions to switch on (installed as packages above).
+gnome_extensions:
+  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox, NoMachine...)
+
+# --------------------------------------------------------------------- Git
+# Written to ~/.gitconfig. Leave blank to skip. Also sets delta as the diff
+# pager, gh for GitHub https logins, and creates ~/.ssh/id_ed25519 if missing.
+git_user_name: ""
+git_user_email: ""
+
+# ------------------------------------------------------- Updates (Linux)
+# Fedora: dnf-automatic applies security updates daily. Debian/Ubuntu:
+# unattended-upgrades. Plus a weekly Flatpak update timer.
+auto_updates_enabled: true
+auto_updates_type: security       # or "default" for all updates
+
+# ------------------------------------------------- Codecs & GPU (Fedora)
+# Full ffmpeg and GStreamer codecs from RPM Fusion, plus hardware video
+# decoding for Intel/AMD and the NVIDIA driver if an NVIDIA GPU is found.
+multimedia_enabled: true
 
 # ------------------------------------------------------------ Linux system
 # systemd services to enable and start.

@@ -27,6 +27,10 @@
     - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
       become: "{{ use_sudo }}"
       tags: packages
+    - role: multimedia    # codecs + GPU drivers (Fedora, RPM Fusion)
+      become: "{{ use_sudo }}"
+      tags: multimedia
+      when: multimedia_enabled | bool
     - role: flatpak       # GUI apps on Linux
       become: "{{ use_sudo }}"
       tags: flatpak
@@ -61,6 +65,17 @@
       become: "{{ use_sudo }}"
       tags: casks
       when: ansible_os_family == 'Darwin'
+    - role: auto_updates  # dnf-automatic / unattended-upgrades + weekly Flatpak updates
+      become: "{{ use_sudo }}"
+      tags: updates
+      when:
+        - ansible_os_family != 'Darwin'
+        - auto_updates_enabled | bool
+    - role: gnome         # GNOME settings (dark mode, ...)
+      tags: gnome
+      when: ansible_os_family != 'Darwin'
+    - role: git_setup     # ~/.gitconfig, delta, gh logins, SSH key
+      tags: git
     - role: dotfiles
       tags: dotfiles
       when: dotfiles_enabled | bool

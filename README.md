@@ -49,6 +49,14 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `nerd_fonts` – Nerd Fonts installed into `~/.local/share/fonts` on Linux (casks on macOS).
 - `zsh_enabled` – zsh as your login shell plus the antidote plugin manager. A starter
   `~/.zshrc` and `~/.zsh_plugins.txt` are created only if missing; add plugins to the latter.
+- `gnome_settings` – GNOME settings as dconf `key: value` pairs (dark mode by default).
+- `git_user_name`, `git_user_email` – your git identity. The git role also sets delta as the
+  diff pager, `gh` for GitHub https logins, and creates `~/.ssh/id_ed25519` if missing
+  (add it to GitHub with `gh ssh-key add ~/.ssh/id_ed25519.pub`).
+- `auto_updates_enabled`, `auto_updates_type` – dnf-automatic (security updates by default) or
+  unattended-upgrades, plus a weekly Flatpak update timer.
+- `multimedia_enabled` – full ffmpeg/GStreamer codecs from RPM Fusion and GPU drivers (Intel/AMD
+  video decoding, NVIDIA driver). With Secure Boot, NVIDIA needs a one-time key enrollment.
 - `services_enabled`, `user_groups` – e.g. `docker` (Linux).
 - `dotfiles_enabled` – clone `dotfiles_repo` and optionally run `dotfiles_install_cmd`.
 
@@ -61,7 +69,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run
 ```
 
-Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`.
+Tags: `repos`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`.
 
 ## Layout
 
@@ -74,6 +82,10 @@ roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
 roles/nomachine       NoMachine from nomachine.com (Linux)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
+roles/multimedia      codecs + GPU drivers (Fedora)
+roles/auto_updates    unattended updates + weekly Flatpak updates
+roles/gnome           GNOME settings via dconf
+roles/git_setup       ~/.gitconfig, delta, gh logins, SSH key
 roles/dotfiles        optional dotfiles checkout
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
