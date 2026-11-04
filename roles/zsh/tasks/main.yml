@@ -31,7 +31,8 @@
           HISTSIZE=50000
           SAVEHIST=50000
           setopt share_history hist_ignore_dups autocd
-          path=(~/.local/bin $path)   # Claude Code and other user tools
+          path=(~/.local/bin $path)   # Claude Code, mise and other user tools
+          (( $+commands[mise] )) && eval "$(mise activate zsh)"
 
           # Plugins: list them in ~/.zsh_plugins.txt
           source {{ antidote_dir }}/antidote.zsh

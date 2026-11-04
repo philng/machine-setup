@@ -1,0 +1,57 @@
+---
+# mise via its official installer (Linux and macOS) into ~/.local/bin/mise;
+# update later with `mise self-update`. uv is installed through mise.
+- name: Set up mise for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  vars:
+    mise_bin: "{{ ansible_env.HOME }}/.local/bin/mise"
+  block:
+    - name: Check whether mise is installed
+      ansible.builtin.stat:
+        path: "{{ mise_bin }}"
+      register: mise_stat
+
+    - name: Download the mise installer
+      ansible.builtin.get_url:
+        url: "{{ mise_installer }}"
+        dest: "{{ ansible_env.HOME }}/.cache/mise-install.sh"
+        mode: "0700"
+      when: not mise_stat.stat.exists
+
+    - name: Run the mise installer
+      ansible.builtin.command:
+        cmd: sh {{ ansible_env.HOME }}/.cache/mise-install.sh
+        creates: "{{ mise_bin }}"
+      when: not mise_stat.stat.exists
+
+    - name: Remove the installer
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.cache/mise-install.sh"
+        state: absent
+
+    - name: Use uv for Python virtualenvs
+      ansible.builtin.command: "{{ mise_bin }} settings get python.uv_venv_auto"
+      register: mise_uv_setting
+      changed_when: false
+      failed_when: false
+
+    - name: Turn on python.uv_venv_auto
+      ansible.builtin.command: "{{ mise_bin }} settings set python.uv_venv_auto true"
+      when: mise_uv_setting.stdout | trim != 'true'
+      changed_when: true
+
+    - name: Check which global tools are installed
+      ansible.builtin.command: "{{ mise_bin }} which {{ item }}"
+      loop: "{{ mise_global_tools }}"
+      register: mise_which
+      changed_when: false
+      failed_when: false
+
+    - name: Install global tools with mise
+      ansible.builtin.command: "{{ mise_bin }} use -g {{ item.item }}@latest"
+      loop: "{{ mise_which.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc != 0
+      changed_when: true

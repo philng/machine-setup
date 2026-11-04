@@ -150,6 +150,13 @@ services_enabled:
 user_groups:
   - docker
 
+# -------------------------------------------------------- mise + uv
+# mise manages language versions per project (Node, Python, Java, Go...);
+# uv manages Python packages and is installed through mise.
+mise_enabled: true
+mise_global_tools:
+  - uv
+
 # ------------------------------------------------------------- Claude Code
 # Installed with Anthropic's native installer into ~/.local/bin (auto-updates).
 # The Claude desktop app is the "claude" cask on macOS.

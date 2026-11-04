@@ -39,6 +39,9 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   Set `nomachine_url` to pin a specific package.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
+- `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
+  installer, `~/.local/bin/mise`), with uv installed through it. The starter `~/.zshrc`
+  activates mise; with your own `.zshrc`, add `eval "$(mise activate zsh)"`.
 - `claude_code_enabled` – Claude Code via Anthropic's native installer (`~/.local/bin/claude`,
   updates itself). The Claude desktop app is the `claude` cask on macOS.
 - `vim_enabled` – vim-plug for vim; a starter `~/.vimrc` is created only if missing.
@@ -57,7 +60,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run
 ```
 
-Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `vim`, `fonts`, `claude`.
+Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `vim`, `fonts`, `mise`, `claude`.
 
 ## Layout
 
@@ -74,6 +77,7 @@ roles/dotfiles        optional dotfiles checkout
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
 roles/fonts           Nerd Fonts (Linux)
+roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
 bootstrap.sh          first-run installer
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
