@@ -52,12 +52,22 @@ echo "==> Installing Ansible collections"
 ansible-galaxy collection install -r requirements.yml
 
 echo "==> Running the playbook"
+# Read prompts from the terminal even when this script's stdin is a pipe.
+# Without a terminal (e.g. run over ssh with no tty), keep stdin as it is.
+run() { if (exec </dev/tty) 2>/dev/null; then "$@" </dev/tty; else "$@"; fi; }
+
 if [ "$OS" = "Darwin" ]; then
   # Homebrew runs as you, but some cask installers need sudo.
-  read -rsp "Password for sudo (used by cask installers): " MACHINE_SETUP_SUDO_PASS </dev/tty
-  echo
-  MACHINE_SETUP_SUDO_PASS="$MACHINE_SETUP_SUDO_PASS" ansible-playbook site.yml "$@" </dev/tty
+  if [ -z "${MACHINE_SETUP_SUDO_PASS:-}" ]; then
+    read -rsp "Password for sudo (used by cask installers): " MACHINE_SETUP_SUDO_PASS </dev/tty
+    echo
+  fi
+  MACHINE_SETUP_SUDO_PASS="$MACHINE_SETUP_SUDO_PASS" run ansible-playbook site.yml "$@"
+elif sudo -k && sudo -n true 2>/dev/null; then
+  # Passwordless sudo (e.g. a test VM): don't ask for a password.
+  # (sudo -k drops the cached login from above so this tests for NOPASSWD.)
+  run ansible-playbook site.yml "$@"
 else
   echo "    (enter your sudo password at the BECOME password prompt)"
-  ansible-playbook site.yml -K "$@" </dev/tty
+  run ansible-playbook site.yml -K "$@"
 fi

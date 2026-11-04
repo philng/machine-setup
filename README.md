@@ -57,9 +57,23 @@ roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
 roles/dotfiles        optional dotfiles checkout
 bootstrap.sh          first-run installer
+tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
 ```
 
 On macOS, some cask installers need sudo; when run through `bootstrap.sh` the
 password is passed in the `MACHINE_SETUP_SUDO_PASS` environment variable. When
 running the playbook by hand on a Mac, export that variable first if a cask asks
 for a password.
+
+## Testing in a throwaway VM
+
+```sh
+sudo dnf install -y qemu-kvm qemu-img xorriso openssh-clients curl   # once
+tests/vm-test.sh            # add --keep to poke around afterwards
+```
+
+It boots a fresh Fedora Cloud VM, pre-installs Firefox, Chromium and LibreOffice,
+copies this working tree in (uncommitted changes included), runs `./bootstrap.sh`,
+runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
+removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
+Needs a Linux x86_64 host with KVM.
