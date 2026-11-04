@@ -158,15 +158,45 @@ pass() { RESULTS+=("PASS  $1"); printf '\033[32mPASS\033[0m  %s\n' "$1"; }
 fail() { RESULTS+=("FAIL  $1"); printf '\033[31mFAIL\033[0m  %s\n' "$1"; }
 check() { local name="$1"; shift; if vm "$@" >/dev/null 2>&1; then pass "$name"; else fail "$name"; fi; }
 
+# Tag for each role (where it differs from the role name), so a failing role
+# can be skipped and the rest of the playbook still tested in the same run.
+role_tag() {
+  case "$1" in
+    jetbrains_toolbox) echo jetbrains ;;
+    claude_code) echo claude ;;
+    auto_updates) echo updates ;;
+    git_setup) echo git ;;
+    *) echo "$1" ;;
+  esac
+}
+# Prints the role of the task that failed in a log, if any.
+failed_role() {
+  grep -B30 '^fatal:' "$1" | sed -n 's/^TASK \[\([a-z_]*\) : .*/\1/p' | tail -1
+}
+
 log "Run 1: ./bootstrap.sh"
+SKIP_TAGS=""
 if vm 'cd ~/machine-setup && ./bootstrap.sh' 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
+  # Keep going past failing roles (up to 5) so one run reports every failure.
+  logf="$WORK/run1.log"
+  for attempt in 1 2 3 4 5; do
+    role="$(failed_role "$logf")"
+    [ -n "$role" ] || break
+    fail "role '$role' failed (skipped for the rest of the test)"
+    SKIP_TAGS="${SKIP_TAGS:+$SKIP_TAGS,}$(role_tag "$role")"
+    logf="$WORK/run1-retry$attempt.log"
+    log "Run 1 again without: $SKIP_TAGS"
+    if vm "cd ~/machine-setup && ansible-playbook site.yml --skip-tags $SKIP_TAGS" 2>&1 | tee "$logf"; then
+      break
+    fi
+  done
 fi
 
 log "Run 2: the playbook again (should change nothing)"
-vm 'cd ~/machine-setup && ansible-playbook site.yml' 2>&1 | tee "$WORK/run2.log" || true
+vm "cd ~/machine-setup && ansible-playbook site.yml ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run2.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run2.log"; then
   pass "second run reports changed=0 failed=0"
 else

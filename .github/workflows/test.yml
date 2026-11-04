@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: test-${{ github.ref }}
-  cancel-in-progress: false   # let a running VM test finish; newer pushes queue
+  cancel-in-progress: true    # a new push replaces a run that's testing an old commit
 
 permissions:
   contents: read
