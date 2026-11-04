@@ -41,10 +41,11 @@ packages:
 # Native packages to make sure are NOT installed. Globs like "foo*" work.
 # Only installed ones are touched, so Linux-only names are harmless on macOS.
 packages_remove:
-  - firefox
-  - firefox-esr            # Debian's name
-  - chromium
-  - chromium-browser       # Ubuntu's name
+  # Use a trailing * to include add-on packages (e.g. firefox-langpacks):
+  # removal stops with an error rather than silently removing other
+  # packages that depend on one listed here.
+  - "firefox*"             # also firefox-esr on Debian
+  - "chromium*"            # also chromium-browser on Ubuntu
   - "libreoffice*"
   # Preinstalled GNOME/Fedora apps you don't use
   - gnome-tour
@@ -53,8 +54,8 @@ packages_remove:
   - gnome-contacts
   - gnome-characters
   - yelp                   # Help viewer
-  - rhythmbox
-  - totem                  # Videos (older Fedora)
+  - "rhythmbox*"
+  - "totem*"               # Videos (older Fedora)
   - showtime               # Videos (newer Fedora)
   - cheese
   - snapshot               # Camera

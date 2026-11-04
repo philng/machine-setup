@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # check commands are single-quoted on purpose: they expand inside the VM
 # Test the playbook end to end in a throwaway Fedora VM.
 #
 #   tests/vm-test.sh                 # Fedora 43, full test
@@ -176,9 +177,8 @@ fi
 log "Checking the result"
 check "Chrome Flatpak installed"        'flatpak info com.google.Chrome'
 check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
-check "Firefox removed"                 '! rpm -q firefox'
-check "Chromium removed"                '! rpm -q chromium'
-# shellcheck disable=SC2016  # expands inside the VM
+check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
+check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
 check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
 check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
 check "podman runs a container"         'podman run --rm quay.io/podman/hello'
