@@ -31,7 +31,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `flatpaks` – Flathub app IDs (Linux GUI apps).
 - `casks` – Homebrew casks (macOS GUI apps).
 - `extra_repos` – `rpmfusion`, `vscode`, `docker` (Linux). `homebrew_taps` on macOS.
-- `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone.
+- `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
 - `services_enabled`, `user_groups` – e.g. `docker` (Linux).
 - `dotfiles_enabled` – clone `dotfiles_repo` and optionally run `dotfiles_install_cmd`.
 

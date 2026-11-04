@@ -8,68 +8,83 @@
 # Third-party repos to enable. Known keys: rpmfusion, vscode, docker
 # (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
 extra_repos:
-  - rpmfusion
-  - vscode
-  # - docker
+  - docker
+  # - rpmfusion     # codecs etc. on Fedora
+  # - vscode
 
 # ------------------------------------------------------------ CLI packages
 # Installed with dnf/apt on Linux and as Homebrew formulae on macOS.
 # Use a generic name; package_name_map below fixes names that differ.
 packages:
-  - git
-  - vim
-  - htop
-  - ripgrep
-  - fd
-  - curl
-  - tmux
-  - code            # from the vscode repo
-  # - docker-ce     # needs the docker repo above
+  - git                    # needed to update this repo
+  - podman
+  # Docker Engine (from the docker repo above). On macOS these are skipped
+  # and Docker Desktop comes from the "docker-desktop" cask instead.
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
 
-# Native packages to make sure are NOT installed.
-packages_remove: []
-  # - gnome-tour
+# Native packages to make sure are NOT installed. Globs like "foo*" work.
+packages_remove:
+  - firefox
+  - firefox-esr            # Debian's name
+  - chromium
+  - chromium-browser       # Ubuntu's name
+  - "libreoffice*"
 
-# Generic name -> name on each OS family. Map to "" to skip it there
-# (e.g. VS Code is a cask on macOS, not a formula).
+# Generic name -> name on each OS family. Map to "" to skip it there.
 package_name_map:
-  RedHat:
-    vim: vim-enhanced
-    fd: fd-find
-  Debian:
-    fd: fd-find
-  Darwin:
-    code: ""
+  RedHat: {}
+  Debian: {}
+  Darwin:                  # these are casks (or not needed) on macOS
     docker-ce: ""
+    docker-ce-cli: ""
+    containerd.io: ""
+    docker-buildx-plugin: ""
+    docker-compose-plugin: ""
+    firefox: ""
+    firefox-esr: ""
+    chromium: ""
+    chromium-browser: ""
+    "libreoffice*": ""
 
 # ------------------------------------------------------- GUI apps (Linux)
 # GUI apps from Flathub (use the app ID from flathub.org).
 flatpaks:
-  - org.mozilla.firefox
-  - org.videolan.VLC
+  - com.google.Chrome
+  - com.spotify.Client
 
-flatpaks_remove: []
+# Also remove the Flatpak versions, in case they were installed that way.
+flatpaks_remove:
+  - org.mozilla.firefox
+  - org.chromium.Chromium
+  - org.libreoffice.LibreOffice
 
 # ------------------------------------------------------- GUI apps (macOS)
 # Homebrew casks (names from formulae.brew.sh/cask).
 casks:
-  - firefox
-  - vlc
-  - visual-studio-code
+  - google-chrome
+  - spotify
+  - docker-desktop
 
-casks_remove: []
+casks_remove:
+  - firefox
+  - chromium
+  - libreoffice
 
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
 
 # ------------------------------------------------------------ Linux system
 # systemd services to enable and start.
-services_enabled: []
-  # - docker
+services_enabled:
+  - docker
 
-# Extra groups for your user (e.g. docker). Takes effect after logging out.
-user_groups: []
-  # - docker
+# Extra groups for your user. Takes effect after logging out and back in.
+user_groups:
+  - docker
 
 # Optional dotfiles role (off by default).
 dotfiles_enabled: false
