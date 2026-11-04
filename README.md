@@ -153,7 +153,11 @@ on your Mac: it installs and removes apps for real.
 
 ### In CI
 
-The same test runs on GitHub Actions for every pull request and push to `main`
-(`.github/workflows/test.yml`), after `ansible-lint` and `shellcheck`. It can
-also be started by hand from the Actions tab. If it fails, the logs are attached
-to the run as `vm-test-logs`.
+GitHub Actions (`.github/workflows/test.yml`) runs on every push to `main`, and
+can be started by hand from the Actions tab for any branch. It runs
+`ansible-lint` and `shellcheck`, then three jobs in parallel: the Fedora VM test,
+`tests/mac-test.sh` on a macOS runner, and a Windows job that lints
+`windows/bootstrap.ps1` and checks every winget ID exists. NoMachine is left out
+of the Fedora and macOS jobs because nomachine.com refuses downloads from
+GitHub's servers. If the Fedora job fails, its logs are attached to the run as
+`vm-test-logs`.
