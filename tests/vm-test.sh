@@ -184,6 +184,8 @@ check "podman runs a container"         'podman run --rm quay.io/podman/hello'
 check "docker service is running"       'systemctl is-active --quiet docker'
 check "user is in the docker group"     'id -nG | grep -qw docker'
 check "docker runs a container (no sudo)" 'docker run --rm hello-world'
+check "NoMachine installed"             'rpm -q nomachine'
+check "NoMachine server running"        'systemctl is-active --quiet nxserver'
 
 # ------------------------------------------------------------ summary
 log "Summary (Fedora $RELEASE)"

@@ -31,6 +31,12 @@
       become: "{{ use_sudo }}"
       tags: flatpak
       when: ansible_os_family != 'Darwin'
+    - role: nomachine     # NoMachine from nomachine.com (Linux)
+      become: "{{ use_sudo }}"
+      tags: nomachine
+      when:
+        - ansible_os_family != 'Darwin'
+        - nomachine_enabled | bool
     - role: casks         # GUI apps on macOS
       become: "{{ use_sudo }}"
       tags: casks

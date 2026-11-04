@@ -68,6 +68,7 @@ casks:
   - google-chrome
   - spotify
   - docker-desktop
+  - nomachine
 
 casks_remove:
   - firefox
@@ -76,6 +77,13 @@ casks_remove:
 
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
+
+# ------------------------------------------------------- NoMachine (Linux)
+# Remote desktop server and client in one package. Not in distro repos or on
+# Flathub, so it is downloaded from nomachine.com (latest version, found
+# automatically). On macOS it comes from the "nomachine" cask above.
+nomachine_enabled: true
+# nomachine_url: https://download.nomachine.com/download/X.Y/Linux/nomachine_X.Y.Z_N_x86_64.rpm
 
 # ------------------------------------------------------------ Linux system
 # systemd services to enable and start.
