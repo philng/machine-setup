@@ -9,8 +9,8 @@
 # (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
 extra_repos:
   - docker
+  - vscode
   # - rpmfusion     # codecs etc. on Fedora
-  # - vscode
 
 # ------------------------------------------------------------ CLI packages
 # Installed with dnf/apt on Linux and as Homebrew formulae on macOS.
@@ -18,6 +18,9 @@ extra_repos:
 packages:
   - git                    # needed to update this repo
   - podman
+  # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
+  # sandbox gets in the way of terminals, SDKs and language servers.
+  - code
   # Docker Engine (from the docker repo above). On macOS these are skipped
   # and Docker Desktop comes from the "docker-desktop" cask instead.
   - docker-ce
@@ -53,7 +56,8 @@ packages_remove:
 package_name_map:
   RedHat: {}
   Debian: {}
-  Darwin:                  # Docker Desktop is a cask on macOS
+  Darwin:                  # these are casks on macOS
+    code: ""
     docker-ce: ""
     docker-ce-cli: ""
     containerd.io: ""
@@ -65,6 +69,7 @@ package_name_map:
 flatpaks:
   - com.google.Chrome
   - com.spotify.Client
+  - org.videolan.VLC       # Media Player Classic is Windows-only
 
 # Also remove the Flatpak versions, in case they were installed that way.
 flatpaks_remove:
@@ -79,6 +84,9 @@ casks:
   - spotify
   - docker-desktop
   - nomachine
+  - vlc
+  - visual-studio-code
+  - jetbrains-toolbox      # then install IntelliJ IDEA from its window
 
 casks_remove:
   - firefox
@@ -94,6 +102,11 @@ homebrew_taps: []
 # automatically). On macOS it comes from the "nomachine" cask above.
 nomachine_enabled: true
 # nomachine_url: https://download.nomachine.com/download/X.Y/Linux/nomachine_X.Y.Z_N_x86_64.rpm
+
+# ----------------------------------------------- JetBrains Toolbox (Linux)
+# Downloaded from jetbrains.com into ~/.local/share/JetBrains/Toolbox and
+# self-updating. Install IntelliJ IDEA from its window on first launch.
+jetbrains_toolbox_enabled: true
 
 # ------------------------------------------------------------ Linux system
 # systemd services to enable and start.

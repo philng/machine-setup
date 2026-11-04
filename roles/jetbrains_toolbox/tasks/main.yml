@@ -1,0 +1,63 @@
+---
+# JetBrains Toolbox on Linux: not in distro repos or on Flathub, so it is
+# downloaded from jetbrains.com into your home directory (where Toolbox
+# keeps and updates itself). Install IDEs such as IntelliJ IDEA from its window.
+# On macOS it is the "jetbrains-toolbox" cask (see casks in vars/apps.yml).
+- name: Install JetBrains Toolbox for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Check whether Toolbox is installed
+      ansible.builtin.stat:
+        path: "{{ jetbrains_toolbox_dir }}/bin/jetbrains-toolbox"
+      register: toolbox_bin
+
+    - name: Download and unpack Toolbox
+      when: not toolbox_bin.stat.exists
+      block:
+        - name: Look up the latest Toolbox release
+          ansible.builtin.uri:
+            url: "{{ jetbrains_toolbox_api }}"
+            return_content: true
+          register: toolbox_release
+
+        - name: Create the Toolbox directory
+          ansible.builtin.file:
+            path: "{{ jetbrains_toolbox_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Download and unpack Toolbox
+          ansible.builtin.unarchive:
+            src: "{{ toolbox_release.json.TBA[0].downloads[jetbrains_toolbox_platform].link }}"
+            dest: "{{ jetbrains_toolbox_dir }}"
+            remote_src: true
+            extra_opts: [--strip-components=1]
+
+        - name: Check the Toolbox binary is where expected
+          ansible.builtin.stat:
+            path: "{{ jetbrains_toolbox_dir }}/bin/jetbrains-toolbox"
+          register: toolbox_bin
+          failed_when: not toolbox_bin.stat.exists
+
+    - name: Create the applications directory
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.local/share/applications"
+        state: directory
+        mode: "0755"
+
+    - name: Add Toolbox to the app grid
+      ansible.builtin.copy:
+        dest: "{{ ansible_env.HOME }}/.local/share/applications/jetbrains-toolbox.desktop"
+        mode: "0644"
+        force: false   # Toolbox manages this file itself after first launch
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=JetBrains Toolbox
+          Exec={{ jetbrains_toolbox_dir }}/bin/jetbrains-toolbox %u
+          Icon=jetbrains-toolbox
+          StartupWMClass=jetbrains-toolbox
+          Terminal=false
+          Categories=Development;
+          MimeType=x-scheme-handler/jetbrains;

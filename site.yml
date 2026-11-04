@@ -37,6 +37,11 @@
       when:
         - ansible_os_family != 'Darwin'
         - nomachine_enabled | bool
+    - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
+      tags: jetbrains
+      when:
+        - ansible_os_family != 'Darwin'
+        - jetbrains_toolbox_enabled | bool
     - role: casks         # GUI apps on macOS
       become: "{{ use_sudo }}"
       tags: casks

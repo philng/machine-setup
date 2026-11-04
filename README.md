@@ -34,6 +34,8 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
 - `nomachine_enabled` – NoMachine server + client from nomachine.com (Linux; a cask on macOS).
   Set `nomachine_url` to pin a specific package.
+- `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
+  Install IntelliJ IDEA from Toolbox's window on first launch.
 - `services_enabled`, `user_groups` – e.g. `docker` (Linux).
 - `dotfiles_enabled` – clone `dotfiles_repo` and optionally run `dotfiles_install_cmd`.
 
@@ -46,7 +48,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run
 ```
 
-Tags: `repos`, `packages`, `flatpak`, `nomachine`, `casks`, `dotfiles`.
+Tags: `repos`, `packages`, `flatpak`, `nomachine`, `jetbrains`, `casks`, `dotfiles`.
 
 ## Layout
 
@@ -58,6 +60,7 @@ roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
 roles/nomachine       NoMachine from nomachine.com (Linux)
+roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/dotfiles        optional dotfiles checkout
 bootstrap.sh          first-run installer
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
