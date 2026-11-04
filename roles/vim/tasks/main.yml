@@ -34,7 +34,9 @@
           call plug#end()
 
           set number
-          set expandtab shiftwidth=4 tabstop=4
+          set autoindent expandtab softtabstop=2 shiftwidth=2 tabstop=2
+
+          imap jj <Esc>
       register: vimrc
 
     - name: Install the starter plugins  # noqa: no-handler (runs only right after creating .vimrc)
