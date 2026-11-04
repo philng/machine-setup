@@ -5,11 +5,12 @@
 # macOS: CLI tools are Homebrew formulae, GUI apps are Homebrew casks.
 
 # ---------------------------------------------------------------- Linux repos
-# Third-party repos to enable. Known keys: rpmfusion, vscode, docker
+# Third-party repos to enable. Known keys: rpmfusion, vscode, docker, ghostty
 # (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
 extra_repos:
   - docker
   - vscode
+  - ghostty                # community COPR on Fedora
   # - rpmfusion     # codecs etc. on Fedora
 
 # ------------------------------------------------------------ CLI packages
@@ -21,6 +22,7 @@ packages:
   # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
   # sandbox gets in the way of terminals, SDKs and language servers.
   - code
+  - ghostty                # terminal; a cask on macOS
   # Docker Engine (from the docker repo above). On macOS these are skipped
   # and Docker Desktop comes from the "docker-desktop" cask instead.
   - docker-ce
@@ -55,9 +57,11 @@ packages_remove:
 # Generic name -> name on each OS family. Map to "" to skip it there.
 package_name_map:
   RedHat: {}
-  Debian: {}
+  Debian:
+    ghostty: ""            # no official Debian/Ubuntu package
   Darwin:                  # these are casks on macOS
     code: ""
+    ghostty: ""
     docker-ce: ""
     docker-ce-cli: ""
     containerd.io: ""
@@ -86,6 +90,7 @@ casks:
   - nomachine
   - vlc
   - visual-studio-code
+  - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
 
 casks_remove:

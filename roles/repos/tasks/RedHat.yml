@@ -43,3 +43,17 @@
     gpgcheck: true
     gpgkey: https://download.docker.com/linux/fedora/gpg
   when: "'docker' in extra_repos"
+
+# Ghostty isn't in Fedora's repos yet; this is the community COPR the
+# Ghostty docs point to.
+- name: Ghostty COPR repo
+  ansible.builtin.yum_repository:
+    name: copr-scottames-ghostty
+    description: Copr repo for ghostty owned by scottames
+    baseurl: "https://download.copr.fedorainfracloud.org/results/scottames/ghostty/fedora-$releasever-$basearch/"
+    gpgcheck: true
+    gpgkey: https://download.copr.fedorainfracloud.org/results/scottames/ghostty/pubkey.gpg
+    repo_gpgcheck: false
+  when:
+    - "'ghostty' in extra_repos"
+    - ansible_distribution == 'Fedora'

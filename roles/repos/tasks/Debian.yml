@@ -6,6 +6,11 @@
     msg: "Skipping rpmfusion on {{ ansible_distribution }} (enable contrib/non-free or multiverse instead)."
   when: "'rpmfusion' in extra_repos"
 
+- name: Ghostty has no official Debian/Ubuntu repo
+  ansible.builtin.debug:
+    msg: "Skipping ghostty on {{ ansible_distribution }}; see https://ghostty.org/docs/install/binary"
+  when: "'ghostty' in extra_repos"
+
 - name: Install python3-debian (needed by deb822_repository)
   ansible.builtin.apt:
     name: python3-debian
