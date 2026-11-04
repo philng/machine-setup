@@ -12,19 +12,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: What the download server returns
         run: |
-          cask=$(curl -fsSL https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/n/nomachine.rb)
-          echo "$cask" | grep -E '^\s*version'
-          ver=$(echo "$cask" | sed -n 's/^ *version "\([0-9.]*\)_[0-9]*"/\1/p')
-          mm=$(echo "$ver" | cut -d. -f1-2)
-          for n in $(seq 1 30); do
-            url="https://download.nomachine.com/download/$mm/Linux/nomachine_${ver}_${n}_x86_64.rpm"
-            printf '%-90s ' "$url"
-            curl -sI -o /dev/null -w '%{http_code} %{content_type} %{size_download}\n' "$url"
+          u=https://download.nomachine.com/download/9.8/Linux/nomachine_9.8.2_1_x86_64.rpm
+          echo "--- Linux guess, headers"; curl -sI "$u" | head -12
+          echo "--- Mac dmg from the cask"; curl -sI https://download.nomachine.com/download/9.8/MacOSX/nomachine_9.8.2_1.dmg | head -12
+          echo "--- AUR PKGBUILD"; curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=nomachine" | grep -Ei 'pkgver|_build|source|nomachine.com|x86_64' | head -20
+          for p in "https://downloads.nomachine.com/download/?id=1" "https://downloads.nomachine.com/download/?id=2" "https://downloads.nomachine.com/linux/?id=1" "https://www.nomachine.com/download/download&id=1" "https://www.nomachine.com/dwl_nm_bann.php"; do
+            echo "--- $p"
+            curl -sL "$p" | grep -oE '[A-Za-z0-9_./:?=&-]*(nomachine_[0-9][^"<> ]*|9[.]8[.][0-9_]+[^"<> ]*)' | sort -u | head -15
           done
-          echo "--- GET of build 1 (first 300 bytes)"
-          curl -sL "https://download.nomachine.com/download/$mm/Linux/nomachine_${ver}_1_x86_64.rpm" | head -c 300; echo
-          echo "--- livecheck page"
-          curl -sIL https://www.nomachine.com/dwl_nm_bann.php | head -20
       - name: Run the role in a Fedora container
         run: |
           docker run --rm -v "$PWD:/src" -w /src fedora:latest bash -c '
