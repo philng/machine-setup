@@ -1,24 +1,11 @@
 ---
 nomachine_enabled: false
-# Leave empty to find the latest package on nomachine.com, or pin a direct
+# Leave empty to install the latest version, or pin a direct
 # link to a .rpm/.deb from https://downloads.nomachine.com/ .
 nomachine_url: ""
 nomachine_arch: "{{ {'x86_64': 'x86_64', 'aarch64': 'aarch64'}[ansible_architecture] | default(ansible_architecture) }}"
 nomachine_deb_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture] | default(ansible_architecture) }}"
 nomachine_pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
-# File name pattern of the package for this machine.
-nomachine_pkg_regex: >-
-  {{ 'nomachine_[0-9][0-9._]*_' + nomachine_arch + '[.]rpm'
-     if ansible_os_family == 'RedHat'
-     else 'nomachine_[0-9][0-9._]*_' + nomachine_deb_arch + '[.]deb' }}
-# Download pages searched for the latest package link.
-nomachine_download_pages:
-  - https://downloads.nomachine.com/download/?id=1
-  - https://downloads.nomachine.com/download/?id=2
-  - https://downloads.nomachine.com/download/?id=3
-  - https://downloads.nomachine.com/download/?id=4
-  - https://downloads.nomachine.com/download/?id=5
-  - https://downloads.nomachine.com/download/?id=6
-  - https://downloads.nomachine.com/linux/
-  - https://www.nomachine.com/download/linux
+# Where the latest version number is read from.
+nomachine_version_source: https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/n/nomachine.rb
 nomachine_port: 4000

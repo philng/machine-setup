@@ -12,6 +12,12 @@
         path: "{{ mise_bin }}"
       register: mise_stat
 
+    - name: Make sure ~/.cache exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.cache"
+        state: directory
+        mode: "0755"
+
     - name: Download the mise installer
       ansible.builtin.get_url:
         url: "{{ mise_installer }}"
