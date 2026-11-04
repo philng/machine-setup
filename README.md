@@ -22,6 +22,27 @@ git clone https://github.com/philng/machine-setup.git ~/machine-setup
 installs the Ansible collections, and runs the playbook. It asks for your sudo
 password once.
 
+## Windows
+
+Ansible can't run on Windows, so Windows has its own script,
+[`windows/bootstrap.ps1`](windows/bootstrap.ps1). It installs the same apps with
+winget (Windows Terminal in place of Ghostty), removes preinstalled Store apps
+(News, Weather, Maps, People, Tips, Clipchamp, Solitaire and so on), turns on dark
+mode, installs Claude Code and mise + uv, sets up git the same way, and creates an
+SSH key. It's safe to re-run.
+
+```powershell
+git clone https://github.com/philng/machine-setup.git
+cd machine-setup
+powershell -ExecutionPolicy Bypass -File windows\bootstrap.ps1
+# optional: -GitUserName "..." -GitUserEmail "..." -WithWsl
+```
+
+`-WithWsl` also installs WSL with Fedora; run `./bootstrap.sh` inside it to get the
+Linux shell setup (zsh, antidote, vim, fzf and so on). The app lists live at the top
+of the script, so keep them in step with `vars/apps.yml` by hand. CI lints the
+script and checks every winget ID exists on a Windows runner.
+
 ## Adding or removing apps
 
 Edit **`vars/apps.yml`**. That's the only file you normally touch.
