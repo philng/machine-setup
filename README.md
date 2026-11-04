@@ -77,3 +77,8 @@ copies this working tree in (uncommitted changes included), runs `./bootstrap.sh
 runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
 removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
 Needs a Linux x86_64 host with KVM.
+
+The same test runs on GitHub Actions for every pull request and push to `main`
+(`.github/workflows/test.yml`), after `ansible-lint` and `shellcheck`. It can
+also be started by hand from the Actions tab. If it fails, the logs are attached
+to the run as `vm-test-logs`.
