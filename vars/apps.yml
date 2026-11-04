@@ -27,28 +27,38 @@ packages:
   - docker-compose-plugin
 
 # Native packages to make sure are NOT installed. Globs like "foo*" work.
+# Only installed ones are touched, so Linux-only names are harmless on macOS.
 packages_remove:
   - firefox
   - firefox-esr            # Debian's name
   - chromium
   - chromium-browser       # Ubuntu's name
   - "libreoffice*"
+  # Preinstalled GNOME/Fedora apps you don't use
+  - gnome-tour
+  - gnome-weather
+  - gnome-maps
+  - gnome-contacts
+  - gnome-characters
+  - yelp                   # Help viewer
+  - rhythmbox
+  - totem                  # Videos (older Fedora)
+  - showtime               # Videos (newer Fedora)
+  - cheese
+  - snapshot               # Camera
+  - gnome-connections      # remote desktop client; NoMachine replaces it
+  - simple-scan            # Document Scanner
 
 # Generic name -> name on each OS family. Map to "" to skip it there.
 package_name_map:
   RedHat: {}
   Debian: {}
-  Darwin:                  # these are casks (or not needed) on macOS
+  Darwin:                  # Docker Desktop is a cask on macOS
     docker-ce: ""
     docker-ce-cli: ""
     containerd.io: ""
     docker-buildx-plugin: ""
     docker-compose-plugin: ""
-    firefox: ""
-    firefox-esr: ""
-    chromium: ""
-    chromium-browser: ""
-    "libreoffice*": ""
 
 # ------------------------------------------------------- GUI apps (Linux)
 # GUI apps from Flathub (use the app ID from flathub.org).

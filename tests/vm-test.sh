@@ -143,8 +143,8 @@ vm 'sudo cloud-init status --wait >/dev/null' || true
 
 # ------------------------------------------------------------ prepare
 if [ "$QUICK" = 0 ]; then
-  log "Pre-installing apps the playbook should remove (Firefox, Chromium, LibreOffice)"
-  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc'
+  log "Pre-installing apps the playbook should remove (Firefox, Chromium, LibreOffice, ...)"
+  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc gnome-tour simple-scan'
 fi
 
 log "Copying this working tree into the VM"
@@ -180,6 +180,7 @@ check "Firefox removed"                 '! rpm -q firefox'
 check "Chromium removed"                '! rpm -q chromium'
 # shellcheck disable=SC2016  # expands inside the VM
 check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
+check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
 check "podman runs a container"         'podman run --rm quay.io/podman/hello'
 check "docker service is running"       'systemctl is-active --quiet docker'
 check "user is in the docker group"     'id -nG | grep -qw docker'
