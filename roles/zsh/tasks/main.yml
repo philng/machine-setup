@@ -39,6 +39,14 @@
           antidote load
 
           autoload -Uz compinit && compinit
+
+          # fzf: Ctrl+R searches history, Ctrl+T finds files, Alt+C cd's
+          if fzf --zsh >/dev/null 2>&1; then source <(fzf --zsh)
+          elif [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then  # older fzf (Ubuntu)
+            source /usr/share/doc/fzf/examples/key-bindings.zsh
+          fi
+          (( $+commands[eza] )) && alias ll='eza -l --git --group-directories-first'
+          (( $+commands[batcat] )) && alias bat=batcat
           bindkey '^[[A' history-substring-search-up
           bindkey '^[[B' history-substring-search-down
 

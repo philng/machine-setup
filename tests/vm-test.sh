@@ -197,6 +197,7 @@ check "vim plugins installed"            'test -d .vim/plugged/vim-sensible'
 check "gh installed"                     'gh --version'
 check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
 check "mise and uv installed"            '.local/bin/mise --version && .local/bin/mise exec -- uv --version'
+check "fzf, bat, btop and eza installed"  'command -v fzf && command -v bat && command -v btop && command -v eza'
 check "NoMachine installed"             'rpm -q nomachine'
 check "NoMachine server running"        'systemctl is-active --quiet nxserver'
 

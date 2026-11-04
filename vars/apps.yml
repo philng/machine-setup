@@ -21,6 +21,10 @@ packages:
   - zsh
   - vim                    # vim-enhanced on Fedora
   - gh                     # GitHub CLI
+  - fzf                    # fuzzy finder (Ctrl+R history, Ctrl+T files)
+  - bat                    # cat with highlighting ("batcat" on Debian/Ubuntu)
+  - btop                   # system monitor
+  - eza                    # nicer ls
   - fontconfig             # fc-cache, used by the fonts role
   # Google Drive in Files on Linux (no official Linux client): sign in under
   # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
