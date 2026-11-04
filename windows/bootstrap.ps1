@@ -91,10 +91,11 @@ function Test-WingetInstalled([string]$Id) {
     return $LASTEXITCODE -eq 0
 }
 
-function Update-SessionPath {
+# PATH as freshly installed apps left it, so this session can use them.
+function Get-FreshPath {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = "$machine;$user;$env:USERPROFILE\.local\bin"
+    return "$machine;$user;$env:USERPROFILE\.local\bin"
 }
 
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
@@ -121,7 +122,7 @@ foreach ($id in $WingetPackages) {
     winget install --id $id --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
     if ($LASTEXITCODE -ne 0) { Write-Warn "failed: $id (exit $LASTEXITCODE)"; $failed += $id }
 }
-Update-SessionPath
+$env:Path = Get-FreshPath
 
 # --- Removals ----------------------------------------------------------------
 Write-Step 'Removing preinstalled apps'
@@ -149,8 +150,11 @@ Write-Step 'Installing Claude Code'
 if (Test-Path "$env:USERPROFILE\.local\bin\claude.exe") {
     Write-Skip 'already installed'
 } else {
-    Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
-    Update-SessionPath
+    $installer = Join-Path $env:TEMP 'claude-install.ps1'
+    Invoke-WebRequest -Uri https://claude.ai/install.ps1 -OutFile $installer -UseBasicParsing
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $installer
+    Remove-Item $installer -ErrorAction SilentlyContinue
+    $env:Path = Get-FreshPath
 }
 
 # --- mise + uv -----------------------------------------------------------------
@@ -161,7 +165,8 @@ if (Get-Command mise -ErrorAction SilentlyContinue) {
         if ($LASTEXITCODE -eq 0) { Write-Skip "already installed: $tool"; continue }
         mise use -g "$tool@latest"
     }
-    if ((mise settings get python.uv_venv_auto 2>$null) -ne 'true') {
+    $uvVenvAuto = mise settings get python.uv_venv_auto 2>$null
+    if ($uvVenvAuto -ne 'true') {
         mise settings set python.uv_venv_auto true
     }
 } else {
