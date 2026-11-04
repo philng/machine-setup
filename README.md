@@ -136,6 +136,23 @@ runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
 removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
 Needs a Linux x86_64 host with KVM.
 
+### On a Mac (Apple Silicon)
+
+```sh
+brew install cirruslabs/cli/tart   # once
+tests/mac-vm-test.sh               # add --keep to poke around afterwards
+```
+
+It clones a [Tart](https://tart.run) macOS VM (the first run downloads a ~25 GB
+image; later clones are instant), copies this working tree in, and runs
+`tests/mac-test.sh` inside it: `./bootstrap.sh`, a second run expecting
+`changed=0`, then checks every cask and tool. The VM is deleted afterwards and
+nothing is installed on your own Mac. Logs land in
+`~/Library/Caches/machine-setup-vm/logs`. Don't run `tests/mac-test.sh` directly
+on your Mac: it installs and removes apps for real.
+
+### In CI
+
 The same test runs on GitHub Actions for every pull request and push to `main`
 (`.github/workflows/test.yml`), after `ansible-lint` and `shellcheck`. It can
 also be started by hand from the Actions tab. If it fails, the logs are attached

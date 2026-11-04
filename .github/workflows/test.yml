@@ -25,7 +25,7 @@ jobs:
       - name: ansible-lint
         run: ansible-lint
       - name: shellcheck
-        run: shellcheck bootstrap.sh tests/vm-test.sh tests/mac-test.sh
+        run: shellcheck bootstrap.sh tests/*.sh
 
   macos:
     needs: lint

@@ -26,6 +26,11 @@ SKIP_NOMACHINE=""
 EXTRA=()
 [ -n "$SKIP_NOMACHINE" ] && EXTRA=(-e nomachine_enabled=false)
 
+# Non-interactive shells (CI, ssh) may not have Homebrew on PATH yet.
+for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  [ -x "$b" ] && eval "$("$b" shellenv)" && break
+done
+
 log "Preinstalling Firefox to check it gets removed"
 brew install --cask firefox >/dev/null 2>&1 || true
 
