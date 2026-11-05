@@ -4,7 +4,7 @@
 # password are separate from your account's and are set once by hand:
 #   sudo grdctl --system rdp set-credentials <user> <password>
 # (or Settings > System > Remote Desktop > Remote Login).
-# RDP is reachable from your LAN and over Tailscale, not the internet.
+# RDP is only reachable over Tailscale (see remote_desktop_allowed_sources).
 - name: Install GNOME Remote Desktop
   ansible.builtin.dnf:
     name: [gnome-remote-desktop, openssl]
@@ -76,12 +76,12 @@
         immediate: true
         state: disabled
 
-    - name: Open the RDP port to the LAN and Tailscale
+    - name: Open the RDP port to the allowed sources only
       ansible.posix.firewalld:
         rich_rule: >-
           rule family="{{ 'ipv6' if ':' in item else 'ipv4' }}" source address="{{ item }}"
           port port="{{ remote_desktop_port }}" protocol="tcp" accept
         permanent: true
         immediate: true
-        state: enabled
-      loop: "{{ remote_desktop_allowed_sources }}"
+        state: "{{ 'enabled' if item in remote_desktop_allowed_sources else 'disabled' }}"
+      loop: "{{ remote_desktop_known_sources | union(remote_desktop_allowed_sources) }}"

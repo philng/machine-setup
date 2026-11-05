@@ -189,8 +189,8 @@ if [ "$PROFILE" = server ]; then
     your tailnet (skip if you set tailscale_authkey).
   - GUI server: choose a remote desktop user name and password with
       sudo grdctl --system rdp set-credentials <user> <password>
-    then connect with any RDP client to this machine's LAN address, or its
-    Tailscale name when you're away (port 3389).
+    then connect with any RDP client to this machine's Tailscale name or
+    100.x address (RDP only accepts connections over Tailscale).
     Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
 DONE
 else

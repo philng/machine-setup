@@ -90,8 +90,8 @@ sign-in):
   and password logins are turned off, so only keys work. If no key is
   authorised the run warns you: add one before you close your session, or
   you'll only be able to log in at the console. fail2ban bans
-  repeated failed SSH logins, and firewalld leaves only SSH open (plus RDP from
-  the LAN and Tailscale on a GUI server).
+  repeated failed SSH logins, and firewalld leaves only SSH open (plus RDP over
+  Tailscale on a GUI server).
 
 Before closing the session that ran it, check you can still SSH in with your key.
 
@@ -134,8 +134,8 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   `tailscale-app` cask on macOS, winget on Windows). Sign in with `sudo tailscale up`, or set
   `tailscale_authkey` (and optionally `tailscale_up_args`, e.g. `["--ssh"]`) in `vars/local.yml`.
 - `remote_desktop_enabled` – GNOME Remote Login on Fedora: RDP into the login screen with
-  nobody logged in, port 3389 opened to your LAN and Tailscale only
-  (never the public internet; change `remote_desktop_allowed_sources` to adjust). On for a GUI server; set the RDP user name and password once
+  nobody logged in, port 3389 opened to Tailscale only
+  (add your LAN, e.g. `192.168.0.0/16`, to `remote_desktop_allowed_sources` to allow it too). On for a GUI server; set the RDP user name and password once
   with `sudo grdctl --system rdp set-credentials <user> <password>`.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
