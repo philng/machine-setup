@@ -1,0 +1,5 @@
+---
+- name: Restart gnome-remote-desktop
+  ansible.builtin.systemd_service:
+    name: gnome-remote-desktop
+    state: restarted
