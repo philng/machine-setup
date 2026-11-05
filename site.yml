@@ -7,6 +7,9 @@
 #   ansible-playbook site.yml -K --check --diff   # dry run
 - name: Set up workstation
   hosts: local
+  # Hardware facts take over a minute on macOS (system_profiler) and nothing
+  # needs them; the snapshots role gathers mounts itself.
+  gather_subset: ['!hardware']
   vars_files:
     - vars/apps.yml
   vars:
