@@ -1,4 +1,6 @@
 ---
+# Desktop profile (the default). The server profile overrides parts of this
+# from vars/server.yml (./bootstrap.sh --profile server).
 # The one file you normally edit.
 #
 # Linux (Fedora, Debian/Ubuntu): CLI tools come from dnf/apt, GUI apps from Flathub.
@@ -98,6 +100,7 @@ flatpaks:
   - com.google.Chrome
   - com.spotify.Client
   - org.videolan.VLC       # Media Player Classic is Windows-only
+  - com.valvesoftware.Steam
 
 # Also remove the Flatpak versions, in case they were installed that way.
 flatpaks_remove:
@@ -113,6 +116,7 @@ casks:
   - docker-desktop
   - nomachine
   - vlc
+  - steam
   - visual-studio-code
   - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
@@ -221,7 +225,12 @@ ghostty_theme: "Catppuccin Mocha"
 # you don't have one.
 vim_enabled: true
 
+# Your GitHub username. bootstrap.sh asks for it on the first run and saves
+# it in vars/local.yml. Used for the dotfiles repo below and, on servers, to
+# fetch the SSH keys allowed to log in (https://github.com/<user>.keys).
+github_user: ""
+
 # Optional dotfiles role (off by default).
 dotfiles_enabled: false
-dotfiles_repo: https://github.com/philng/dotfiles.git
+dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 dotfiles_dest: "~/.dotfiles"

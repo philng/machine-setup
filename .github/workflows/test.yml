@@ -55,6 +55,11 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, server]
+    name: fedora-vm (${{ matrix.profile }})
     steps:
       - uses: actions/checkout@v4
 
@@ -83,12 +88,12 @@ jobs:
 
       - name: Run VM test
         # nomachine.com redirects downloads from GitHub's servers to its home page.
-        run: tests/vm-test.sh --skip-nomachine
+        run: tests/vm-test.sh --skip-nomachine --profile ${{ matrix.profile }}
 
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: vm-test-logs
+          name: vm-test-logs-${{ matrix.profile }}
           path: ~/.cache/machine-setup-vm/logs/
           if-no-files-found: ignore
