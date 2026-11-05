@@ -126,18 +126,6 @@
 - name: Apply the Remote Login settings
   ansible.builtin.meta: flush_handlers
 
-- name: Check that RDP is listening
-  ansible.builtin.command: ss -Htln sport = :{{ remote_desktop_port }}
-  register: grd_listening
-  changed_when: false
-  check_mode: false   # read-only; also runs in --dry-run
-
-- name: Restart the remote desktop service if it isn't listening
-  ansible.builtin.systemd_service:
-    name: gnome-remote-desktop
-    state: restarted
-  when: grd_listening.stdout | trim | length == 0
-
 - name: Check for firewalld
   ansible.builtin.service_facts:
 

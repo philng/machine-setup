@@ -293,7 +293,8 @@ else
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
   check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
   check "RDP certificate renewal timer on" 'systemctl is-enabled --quiet rdp-tailscale-cert.timer'
-  check "RDP listening on port 3389"     'sudo ss -Htln "sport = :3389" | grep -q .'
+  # Remote Login only listens with GDM running, which the cloud image lacks.
+  check "RDP listening (if GDM runs)"    '! systemctl is-active --quiet gdm || sudo ss -Htln "sport = :3389" | grep -q .'
   check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
   # (The cloud image doesn't run firewalld; Fedora Workstation does.)
   check "RDP open to Tailscale only"      'r=$(sudo firewall-cmd --list-rich-rules); echo "$r" | grep -q "100.64.0.0/10.*3389" && ! echo "$r" | grep -q "192.168.0.0/16" && ! sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
