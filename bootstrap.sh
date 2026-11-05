@@ -51,10 +51,30 @@ cd "$DEST"
 echo "==> Installing Ansible collections"
 ansible-galaxy collection install -r requirements.yml
 
-echo "==> Running the playbook"
 # Read prompts from the terminal even when this script's stdin is a pipe.
-# Without a terminal (e.g. run over ssh with no tty), keep stdin as it is.
-run() { if (exec </dev/tty) 2>/dev/null; then "$@" </dev/tty; else "$@"; fi; }
+# Without a terminal (CI, ssh with no tty) every question below is skipped.
+have_tty() { (exec </dev/tty) 2>/dev/null; }
+run() { if have_tty; then "$@" </dev/tty; else "$@"; fi; }
+ask() { local reply; read -rp "$1" reply </dev/tty; printf '%s' "$reply"; }
+yaml_str() { printf "'%s'" "${1//\'/\'\'}"; }
+
+# --- First run: personal settings -------------------------------------------
+# Kept in vars/local.yml (not committed), which overrides vars/apps.yml.
+LOCAL_VARS="$DEST/vars/local.yml"
+if [ ! -f "$LOCAL_VARS" ] && have_tty \
+   && ! grep -Eq "^git_user_name: *[\"']?[^\"' ]" vars/apps.yml \
+   && [ -z "$(git config --global user.name 2>/dev/null || true)" ]; then
+  echo "==> First run: a couple of personal settings (saved in vars/local.yml)"
+  git_name="$(ask "    Name for git commits (Enter to skip): ")"
+  git_email="$(ask "    Email for git commits (Enter to skip): ")"
+  {
+    echo "# Personal settings for this machine (not committed). Overrides vars/apps.yml."
+    echo "git_user_name: $(yaml_str "$git_name")"
+    echo "git_user_email: $(yaml_str "$git_email")"
+  } > "$LOCAL_VARS"
+fi
+
+echo "==> Running the playbook"
 
 if [ "$OS" = "Darwin" ]; then
   # Homebrew runs as you, but some cask installers need sudo.
@@ -72,3 +92,29 @@ else
   echo "    (enter your sudo password at the BECOME password prompt)"
   run ansible-playbook site.yml -K "$@"
 fi
+
+# --- After the playbook ---------------------------------------------------------
+# Sign in to GitHub and add this machine's SSH key, so cloning and pushing
+# work straight away. gh offers to upload ~/.ssh/id_ed25519.pub during login.
+if have_tty && command -v gh >/dev/null 2>&1; then
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "==> Signing in to GitHub (choose SSH, and say yes to uploading your key)"
+    run gh auth login --hostname github.com --git-protocol ssh --web || true
+  elif [ -f "$HOME/.ssh/id_ed25519.pub" ] \
+       && ! gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$HOME/.ssh/id_ed25519.pub")"; then
+    echo "==> Adding this machine's SSH key to GitHub"
+    run gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$(hostname -s 2>/dev/null || hostname)" \
+      || echo "    Couldn't add it; run: gh auth refresh -s admin:public_key && gh ssh-key add ~/.ssh/id_ed25519.pub"
+  fi
+fi
+
+cat <<'DONE'
+
+==> Done. What's left to do by hand:
+  - Log out and back in (zsh becomes your shell; on Linux, docker works without sudo).
+  - Sign in to Chrome, Spotify and the Claude app, and to Google Drive
+    (on Linux: Settings > Online Accounts > Google).
+  - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
+  - Run `claude` once in a terminal to sign in to Claude Code.
+  - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
+DONE

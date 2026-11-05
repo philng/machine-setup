@@ -175,6 +175,16 @@ if (Get-Command mise -ErrorAction SilentlyContinue) {
 
 # --- Git and SSH ---------------------------------------------------------------
 Write-Step 'Configuring git'
+# First run: ask for name/email unless given or already set.
+$interactive = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected -and -not $env:CI
+if ($interactive -and (Get-Command git -ErrorAction SilentlyContinue)) {
+    if (-not $GitUserName -and -not (git config --global user.name)) {
+        $GitUserName = Read-Host '    Name for git commits (Enter to skip)'
+    }
+    if (-not $GitUserEmail -and -not (git config --global user.email)) {
+        $GitUserEmail = Read-Host '    Email for git commits (Enter to skip)'
+    }
+}
 if (Get-Command git -ErrorAction SilentlyContinue) {
     $gitConfig = [ordered]@{
         'init.defaultBranch'                        = 'main'
@@ -224,10 +234,26 @@ if ($WithWsl) {
     }
 }
 
+# --- GitHub sign-in ------------------------------------------------------------
+# gh offers to upload ~/.ssh/id_ed25519.pub during login.
+if ($interactive -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+    gh auth status *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Step 'Signing in to GitHub (choose SSH, and say yes to uploading your key)'
+        gh auth login --hostname github.com --git-protocol ssh --web
+    }
+}
+
 # --- Summary -----------------------------------------------------------------
 Write-Step 'Done'
 if ($failed.Count -gt 0) {
     Write-Warn "These apps failed to install; re-run to retry: $($failed -join ', ')"
-    exit 1
 }
-Write-Host 'Open a new terminal so PATH changes take effect.'
+Write-Host @'
+What's left to do by hand:
+  - Open a new terminal so PATH changes take effect (sign out and in if Docker asks).
+  - Sign in to Chrome, Spotify, Google Drive and the Claude app.
+  - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
+  - Run `claude` once in a terminal to sign in to Claude Code.
+'@
+if ($failed.Count -gt 0) { exit 1 }
