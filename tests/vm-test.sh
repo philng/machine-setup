@@ -292,6 +292,7 @@ else
   check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
   check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
+  check "RDP certificate renewal timer on" 'systemctl is-enabled --quiet rdp-tailscale-cert.timer'
   check "RDP listening on port 3389"     'sudo ss -Htln "sport = :3389" | grep -q .'
   check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
   # (The cloud image doesn't run firewalld; Fedora Workstation does.)

@@ -1,0 +1,31 @@
+#!/bin/sh
+# Fetches (or renews) a trusted TLS certificate for this machine's Tailscale
+# name, for GNOME Remote Desktop. Run by the machine-setup playbook and
+# weekly by rdp-tailscale-cert.timer. Prints "updated" when the cert changed.
+set -eu
+dir="${1:-/etc/gnome-remote-desktop}"
+
+domain=$(tailscale status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except ValueError:
+    d = {}
+print((d.get("CertDomains") or [""])[0])')
+if [ -z "$domain" ]; then
+  echo "No Tailscale certificate domain (not signed in, or HTTPS certificates are off for the tailnet)" >&2
+  exit 3
+fi
+
+before=$(sha256sum < "$dir/ts.crt" 2>/dev/null || true)
+tailscale cert --cert-file "$dir/ts.crt" --key-file "$dir/ts.key" "$domain" >/dev/null
+chown gnome-remote-desktop:gnome-remote-desktop "$dir/ts.crt" "$dir/ts.key"
+chmod 600 "$dir/ts.crt" "$dir/ts.key"
+after=$(sha256sum < "$dir/ts.crt")
+if [ "$before" != "$after" ]; then
+  echo updated
+  # Pick up a renewed certificate (no-op if RDP isn't using it yet).
+  if grdctl --system status 2>/dev/null | grep -q "$dir/ts.crt"; then
+    systemctl try-restart gnome-remote-desktop
+  fi
+fi

@@ -17,5 +17,10 @@ remote_desktop_known_sources:
   - 172.16.0.0/12
   - "fc00::/7"
   - "fe80::/10"
-# Where the self-signed TLS certificate for RDP is kept.
+# Use a trusted certificate for this machine's Tailscale name
+# (<host>.<tailnet>.ts.net) instead of the self-signed one, so RDP clients
+# don't warn. Needs HTTPS certificates turned on for your tailnet
+# (https://login.tailscale.com/admin/dns); falls back to self-signed if not.
+remote_desktop_tailscale_cert: "{{ tailscale_enabled | default(false) }}"
+# Where the TLS certificates for RDP are kept.
 remote_desktop_tls_dir: /etc/gnome-remote-desktop

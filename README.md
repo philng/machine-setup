@@ -136,7 +136,10 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `remote_desktop_enabled` – GNOME Remote Login on Fedora: RDP into the login screen with
   nobody logged in, port 3389 opened to Tailscale only
   (add your LAN, e.g. `192.168.0.0/16`, to `remote_desktop_allowed_sources` to allow it too). On for a GUI server; set the RDP user name and password once
-  with `sudo grdctl --system rdp set-credentials <user> <password>`.
+  with `sudo grdctl --system rdp set-credentials <user> <password>`. If HTTPS certificates are on
+  for your tailnet ([DNS settings](https://login.tailscale.com/admin/dns)), RDP uses a trusted
+  certificate for `<name>.<tailnet>.ts.net` (renewed weekly) so clients don't warn; otherwise a
+  self-signed one.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
