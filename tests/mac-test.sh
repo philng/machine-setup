@@ -35,7 +35,7 @@ log "Preinstalling Firefox to check it gets removed"
 brew install --cask firefox >/dev/null 2>&1 || true
 
 log "Run 1: ./bootstrap.sh"
-if ./bootstrap.sh "${EXTRA[@]}" 2>&1 | tee "$WORK/run1.log"; then
+if ./bootstrap.sh ${EXTRA[@]+"${EXTRA[@]}"} 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
@@ -43,7 +43,7 @@ fi
 
 log "Run 2: the playbook again (should change nothing)"
 eval "$(brew shellenv)"
-ansible-playbook site.yml "${EXTRA[@]}" 2>&1 | tee "$WORK/run2.log" || true
+ansible-playbook site.yml ${EXTRA[@]+"${EXTRA[@]}"} 2>&1 | tee "$WORK/run2.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run2.log"; then
   pass "second run reports changed=0 failed=0"
 else
@@ -51,7 +51,7 @@ else
 fi
 
 log "Run 3: bootstrap.sh --dry-run (should report no changes)"
-./bootstrap.sh --dry-run "${EXTRA[@]}" 2>&1 | tee "$WORK/run3.log" || true
+./bootstrap.sh --dry-run ${EXTRA[@]+"${EXTRA[@]}"} 2>&1 | tee "$WORK/run3.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run3.log"; then
   pass "dry run reports changed=0 failed=0"
 else
