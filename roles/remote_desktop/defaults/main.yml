@@ -1,9 +1,21 @@
 ---
 remote_desktop_enabled: false
 remote_desktop_port: 3389
-# Only accept RDP over Tailscale (from 100.64.0.0/10 and Tailscale's IPv6
-# range), never from the LAN or a public IP. On whenever Tailscale is.
-remote_desktop_tailscale_only: "{{ tailscale_enabled | default(false) }}"
-remote_desktop_tailscale_ranges: [100.64.0.0/10, "fd7a:115c:a1e0::/48"]
+# Who may connect over RDP. By default only Tailscale, never the LAN or the
+# public internet. To also allow your LAN, add its range in vars/local.yml:
+#   remote_desktop_allowed_sources: [100.64.0.0/10, "fd7a:115c:a1e0::/48", 192.168.0.0/16]
+remote_desktop_allowed_sources:
+  - 100.64.0.0/10          # Tailscale IPv4
+  - "fd7a:115c:a1e0::/48"  # Tailscale IPv6
+# Ranges this role may have opened before; any not in the allowed list above
+# are closed again.
+remote_desktop_known_sources:
+  - 100.64.0.0/10
+  - "fd7a:115c:a1e0::/48"
+  - 192.168.0.0/16
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - "fc00::/7"
+  - "fe80::/10"
 # Where the self-signed TLS certificate for RDP is kept.
 remote_desktop_tls_dir: /etc/gnome-remote-desktop
