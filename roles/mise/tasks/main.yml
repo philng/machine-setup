@@ -5,7 +5,7 @@
   become: "{{ use_sudo }}"
   become_user: "{{ target_user }}"
   vars:
-    mise_bin: "{{ ansible_env.HOME }}/.local/bin/mise"
+    mise_bin: "{{ ansible_facts.env.HOME }}/.local/bin/mise"
   block:
     - name: Check whether mise is installed
       ansible.builtin.stat:
@@ -14,26 +14,26 @@
 
     - name: Make sure ~/.cache exists
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.cache"
+        path: "{{ ansible_facts.env.HOME }}/.cache"
         state: directory
         mode: "0755"
 
     - name: Download the mise installer
       ansible.builtin.get_url:
         url: "{{ mise_installer }}"
-        dest: "{{ ansible_env.HOME }}/.cache/mise-install.sh"
+        dest: "{{ ansible_facts.env.HOME }}/.cache/mise-install.sh"
         mode: "0700"
       when: not mise_stat.stat.exists
 
     - name: Run the mise installer
       ansible.builtin.command:
-        cmd: sh {{ ansible_env.HOME }}/.cache/mise-install.sh
+        cmd: sh {{ ansible_facts.env.HOME }}/.cache/mise-install.sh
         creates: "{{ mise_bin }}"
       when: not mise_stat.stat.exists
 
     - name: Remove the installer
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.cache/mise-install.sh"
+        path: "{{ ansible_facts.env.HOME }}/.cache/mise-install.sh"
         state: absent
 
     - name: Use uv for Python virtualenvs

@@ -1,7 +1,7 @@
 ---
 # Unattended package updates (Linux). macOS updates itself.
 - name: Fedora automatic updates
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts.os_family == 'RedHat'
   block:
     - name: Install dnf-automatic
       ansible.builtin.dnf:
@@ -41,11 +41,11 @@
   ansible.builtin.apt:
     name: unattended-upgrades
     state: present
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'
 
 - name: Weekly Flatpak updates
   when:
-    - ansible_os_family != 'Darwin'
+    - ansible_facts.os_family != 'Darwin'
     - flatpak_auto_update | bool
     - machine_gui | default(true) | bool   # no Flatpaks on a headless server
   block:

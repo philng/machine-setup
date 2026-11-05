@@ -5,7 +5,7 @@
   become: "{{ use_sudo }}"
   become_user: "{{ target_user }}"
   vars:
-    dotfiles_path: "{{ dotfiles_dest | replace('~', ansible_env.HOME, 1) }}"
+    dotfiles_path: "{{ dotfiles_dest | replace('~', ansible_facts.env.HOME, 1) }}"
   block:
     - name: Check the dotfiles repo exists  # noqa: command-instead-of-module
       ansible.builtin.command: git ls-remote --exit-code {{ dotfiles_repo | quote }} HEAD
@@ -59,13 +59,13 @@
 
         - name: Check what is already there
           ansible.builtin.stat:
-            path: "{{ ansible_env.HOME }}/{{ item }}"
+            path: "{{ ansible_facts.env.HOME }}/{{ item }}"
           loop: "{{ dotfiles_links }}"
           register: dotfiles_existing
 
         - name: Back up files the links will replace
           ansible.builtin.command:
-            cmd: mv {{ (ansible_env.HOME ~ '/' ~ item.item) | quote }} {{ (ansible_env.HOME ~ '/' ~ item.item ~ '.pre-dotfiles') | quote }}
+            cmd: mv {{ (ansible_facts.env.HOME ~ '/' ~ item.item) | quote }} {{ (ansible_facts.env.HOME ~ '/' ~ item.item ~ '.pre-dotfiles') | quote }}
           loop: "{{ dotfiles_existing.results }}"
           loop_control:
             label: "{{ item.item }}"
@@ -74,7 +74,7 @@
 
         - name: Create parent folders
           ansible.builtin.file:
-            path: "{{ ansible_env.HOME }}/{{ item }}"
+            path: "{{ ansible_facts.env.HOME }}/{{ item }}"
             state: directory
             mode: "0755"
           loop: "{{ dotfiles_links | map('dirname') | select | unique | list }}"
@@ -84,7 +84,7 @@
         - name: Link the files
           ansible.builtin.file:
             src: "{{ dotfiles_path }}/{{ dotfiles_link_dir }}/{{ item }}"
-            dest: "{{ ansible_env.HOME }}/{{ item }}"
+            dest: "{{ ansible_facts.env.HOME }}/{{ item }}"
             state: link
             force: true
           loop: "{{ dotfiles_links }}"

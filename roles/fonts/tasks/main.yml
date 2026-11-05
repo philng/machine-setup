@@ -8,13 +8,13 @@
   block:
     - name: Check which fonts are installed
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.local/share/fonts/{{ item }}"
+        path: "{{ ansible_facts.env.HOME }}/.local/share/fonts/{{ item }}"
       loop: "{{ nerd_fonts }}"
       register: font_dirs
 
     - name: Create font folders
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.local/share/fonts/{{ item.item }}"
+        path: "{{ ansible_facts.env.HOME }}/.local/share/fonts/{{ item.item }}"
         state: directory
         mode: "0755"
       loop: "{{ font_dirs.results }}"
@@ -25,7 +25,7 @@
     - name: Download and unpack fonts
       ansible.builtin.unarchive:
         src: "{{ nerd_fonts_url }}/{{ item.item }}.tar.xz"
-        dest: "{{ ansible_env.HOME }}/.local/share/fonts/{{ item.item }}"
+        dest: "{{ ansible_facts.env.HOME }}/.local/share/fonts/{{ item.item }}"
         remote_src: true
       loop: "{{ font_dirs.results }}"
       loop_control:

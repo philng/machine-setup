@@ -14,7 +14,7 @@
     target_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
     # Linux needs root for dnf/apt/flatpak. Homebrew refuses to run as root.
     # (Set per role because facts aren't known yet at the play level.)
-    use_sudo: "{{ ansible_os_family != 'Darwin' }}"
+    use_sudo: "{{ ansible_facts.os_family != 'Darwin' }}"
     # "desktop" (default) or "server" (see vars/server.yml).
     profile: desktop
 
@@ -23,7 +23,7 @@
       ansible.builtin.assert:
         that:
           - profile in ['desktop', 'server']
-          - profile == 'desktop' or ansible_distribution == 'Fedora'
+          - profile == 'desktop' or ansible_facts.distribution == 'Fedora'
         fail_msg: "profile must be desktop or server, and the server profile is for Fedora Server."
         quiet: true
       tags: always
@@ -38,7 +38,7 @@
     - name: Work out whether this machine has a GUI
       ansible.builtin.set_fact:
         machine_gui: >-
-          {{ true if profile == 'desktop' or ansible_os_family == 'Darwin'
+          {{ true if profile == 'desktop' or ansible_facts.os_family == 'Darwin'
              else (machine_gui | bool if machine_gui is defined else gnome_shell.stat.exists) }}
       tags: always
 
@@ -57,7 +57,7 @@
     - name: Show detected OS and profile
       ansible.builtin.debug:
         msg: >-
-          {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_os_family }}),
+          {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }} ({{ ansible_facts.os_family }}),
           {{ profile }} profile, {{ 'GUI' if machine_gui | bool else 'headless' }}
       tags: always
 
@@ -69,7 +69,7 @@
       become: "{{ use_sudo }}"
       tags: snapshots
       when:
-        - ansible_distribution == 'Fedora'
+        - ansible_facts.distribution == 'Fedora'
         - snapshots_enabled | bool
     - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
       become: "{{ use_sudo }}"
@@ -82,25 +82,25 @@
       become: "{{ use_sudo }}"
       tags: flatpak
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
     - role: tailscale     # Tailscale VPN from its official repo (Linux)
       become: "{{ use_sudo }}"
       tags: tailscale
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - tailscale_enabled | bool
     - role: remote_desktop   # GNOME Remote Login over RDP (Fedora)
       become: "{{ use_sudo }}"
       tags: remote_desktop
       when:
-        - ansible_os_family == 'RedHat'
+        - ansible_facts.os_family == 'RedHat'
         - remote_desktop_enabled | bool
         - machine_gui | bool
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - jetbrains_toolbox_enabled | bool
         - machine_gui | bool
     - role: dotfiles      # your dotfiles repo, linked into ~ (before vim/ghostty/zsh,
@@ -126,25 +126,25 @@
     - role: fonts         # Nerd Fonts (Linux; casks on macOS)
       tags: fonts
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
     - role: casks         # GUI apps on macOS
       become: "{{ use_sudo }}"
       tags: casks
-      when: ansible_os_family == 'Darwin'
+      when: ansible_facts.os_family == 'Darwin'
     - role: macos         # dark mode, Dock, key repeat, Finder (macOS)
       tags: macos
-      when: ansible_os_family == 'Darwin'
+      when: ansible_facts.os_family == 'Darwin'
     - role: auto_updates  # dnf-automatic / unattended-upgrades + weekly Flatpak updates
       become: "{{ use_sudo }}"
       tags: updates
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - auto_updates_enabled | bool
     - role: gnome         # GNOME settings (dark mode, ...)
       tags: gnome
       when:
-        - ansible_os_family != 'Darwin'
+        - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
     - role: git_setup     # ~/.gitconfig, delta, gh logins, SSH key
       tags: git

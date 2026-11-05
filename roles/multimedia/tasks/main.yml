@@ -2,7 +2,7 @@
 # Full codecs and GPU drivers on Fedora, from RPM Fusion (enable "rpmfusion"
 # in extra_repos). Follows https://rpmfusion.org/Howto/Multimedia.
 - name: Codecs and drivers (Fedora)
-  when: ansible_distribution == 'Fedora'
+  when: ansible_facts.distribution == 'Fedora'
   block:
     - name: Check RPM Fusion is enabled
       ansible.builtin.assert:

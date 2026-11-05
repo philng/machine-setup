@@ -3,7 +3,7 @@
 # bad update can be rolled back. Skipped unless / is btrfs.
 - name: Check that / is btrfs
   ansible.builtin.set_fact:
-    snapshots_root_btrfs: "{{ ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='fstype') | first | default('') == 'btrfs' }}"
+    snapshots_root_btrfs: "{{ ansible_facts.mounts | selectattr('mount', 'equalto', '/') | map(attribute='fstype') | first | default('') == 'btrfs' }}"
 
 - name: Snapshots with snapper
   when: snapshots_root_btrfs | bool

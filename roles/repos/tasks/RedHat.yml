@@ -4,15 +4,15 @@
 - name: RPM Fusion free and nonfree
   ansible.builtin.dnf:
     name:
-      - "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-      - "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+      - "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
+      - "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
     state: present
     # The release RPMs install RPM Fusion's signing keys, so they can't be
     # verified before they're installed. They're fetched over HTTPS.
     disable_gpg_check: true
   when:
     - "'rpmfusion' in extra_repos"
-    - ansible_distribution == 'Fedora'
+    - ansible_facts.distribution == 'Fedora'
 
 - name: VS Code signing key
   ansible.builtin.rpm_key:
@@ -56,4 +56,4 @@
     repo_gpgcheck: false
   when:
     - "'ghostty' in extra_repos"
-    - ansible_distribution == 'Fedora'
+    - ansible_facts.distribution == 'Fedora'

@@ -42,13 +42,13 @@
 
     - name: Create the applications directory
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.local/share/applications"
+        path: "{{ ansible_facts.env.HOME }}/.local/share/applications"
         state: directory
         mode: "0755"
 
     - name: Add Toolbox to the app grid
       ansible.builtin.copy:
-        dest: "{{ ansible_env.HOME }}/.local/share/applications/jetbrains-toolbox.desktop"
+        dest: "{{ ansible_facts.env.HOME }}/.local/share/applications/jetbrains-toolbox.desktop"
         mode: "0644"
         force: false   # Toolbox manages this file itself after first launch
         content: |
