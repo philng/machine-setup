@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or server" >&2; exit 2 ;; esac
-ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} ${DRY_RUN:+--check --diff} "${ARGS[@]}")
+ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} ${DRY_RUN:+--check --diff} ${ARGS[@]+"${ARGS[@]}"})
 set -- "${ARGS[@]}"
 
 REPO_URL="${REPO_URL:-}"   # only needed when not run from a checkout

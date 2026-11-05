@@ -111,6 +111,9 @@ if ($CheckOnly) {
         if ($LASTEXITCODE -eq 0) { Write-Skip "ok      $id" } else {
             Write-Warn "missing $id (winget exit code $LASTEXITCODE)"
             $out | Select-Object -Last 5 | ForEach-Object { Write-Warn "        $_" }
+            # Show close matches so the right ID is easy to find.
+            winget search ($id -split '\.')[-1] --accept-source-agreements --disable-interactivity 2>&1 |
+                Select-Object -Last 8 | ForEach-Object { Write-Warn "        $_" }
             $missing += $id
         }
     }
