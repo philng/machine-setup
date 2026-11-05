@@ -244,6 +244,7 @@ check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
 if [ "$PROFILE" = server ]; then
   check "tmux installed"                  'command -v tmux'
   check "no desktop apps (Flatpaks, VS Code, fonts)" '! flatpak list 2>/dev/null | grep -q . && ! rpm -q code && ! fc-list 2>/dev/null | grep -qi "Nerd Font"'
+  check "sshd enabled at boot"            'systemctl is-enabled --quiet sshd'
   check "SSH: root login off"             'sudo sshd -T | grep -qx "permitrootlogin no"'
   check "SSH: password login off"         'sudo sshd -T | grep -qx "passwordauthentication no"'
   check "firewall only allows SSH"        '[ "$(sudo firewall-cmd --list-services | tr " " "\n" | sort | xargs)" = "dhcpv6-client ssh" ]'

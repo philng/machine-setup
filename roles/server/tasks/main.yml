@@ -2,6 +2,19 @@
 # Hardening for the server profile: SSH keys, key-only SSH, fail2ban and a
 # firewall that only lets SSH in.
 
+- name: Make sure the SSH server is installed and running
+  block:
+    - name: Install openssh-server
+      ansible.builtin.dnf:
+        name: openssh-server
+        state: present
+
+    - name: Start sshd at boot
+      ansible.builtin.systemd_service:
+        name: sshd
+        enabled: true
+        state: started
+
 - name: Authorise your SSH keys
   when: server_ssh_keys_url | length > 0
   block:
