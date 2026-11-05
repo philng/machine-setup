@@ -150,22 +150,29 @@ if [ -n "$DRY_RUN" ]; then
 fi
 
 # Sign in to GitHub and add this machine's SSH key, so cloning and pushing
-# work straight away. gh offers to upload ~/.ssh/id_ed25519.pub during login.
+# work straight away. Adding a key needs an extra gh permission, which is
+# asked for only while the key is uploaded and dropped again afterwards, so
+# the saved token can't change your SSH keys.
 if [ "$PROFILE" = desktop ] && have_tty && command -v gh >/dev/null 2>&1; then
   if ! gh auth status >/dev/null 2>&1; then
-    echo "==> Signing in to GitHub (choose SSH, and say yes to uploading your key)"
-    run gh auth login --hostname github.com --git-protocol ssh --web -s admin:public_key || true
-  elif [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-    # Reading and adding SSH keys needs the admin:public_key scope, which a
-    # plain `gh auth login` doesn't grant, so ask for it first if it's missing.
-    if ! gh auth status 2>&1 | grep -q 'admin:public_key'; then
-      echo "==> Letting gh manage your SSH keys (approve in the browser)"
-      run gh auth refresh --hostname github.com -s admin:public_key || true
+    echo "==> Signing in to GitHub (choose SSH)"
+    run gh auth login --hostname github.com --git-protocol ssh --web || true
+  fi
+  KEY="$HOME/.ssh/id_ed25519.pub"
+  if gh auth status >/dev/null 2>&1 && [ -f "$KEY" ]; then
+    key_scope() { gh auth status 2>&1 | grep -qE "'(admin|write):public_key'"; }
+    if ! key_scope; then
+      echo "==> Allowing gh to add your SSH key for a moment (approve in the browser)"
+      run gh auth refresh --hostname github.com -s write:public_key || true
     fi
-    if ! gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$HOME/.ssh/id_ed25519.pub")"; then
+    if ! gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$KEY")"; then
       echo "==> Adding this machine's SSH key to GitHub"
-      run gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$(hostname -s 2>/dev/null || hostname)" \
-        || echo "    Couldn't add it; run: gh auth refresh -s admin:public_key && gh ssh-key add ~/.ssh/id_ed25519.pub"
+      run gh ssh-key add "$KEY" --title "$(hostname -s 2>/dev/null || hostname)" \
+        || echo "    Couldn't add it; run: gh auth refresh -s write:public_key && gh ssh-key add $KEY"
+    fi
+    if key_scope; then
+      echo "==> Removing gh's SSH key permission again (approve in the browser)"
+      run gh auth refresh --hostname github.com -r write:public_key -r admin:public_key || true
     fi
   fi
 fi

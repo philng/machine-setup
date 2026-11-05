@@ -25,7 +25,9 @@ installs the Ansible collections, and runs the playbook. Along the way it:
 - on the first run, asks for your GitHub username (and, on a desktop, your git
   name and email) and saves them in `vars/local.yml`;
 - afterwards, signs you in to GitHub with `gh` and uploads the machine's new SSH
-  key (or just uploads the key if you're already signed in);
+  key (or just uploads the key if you're already signed in). gh only gets
+  permission to add SSH keys while it uploads the key, then gives it up again,
+  so you approve two short prompts in the browser;
 - ends with the few things left to do by hand: log out and back in, sign in to
   your apps, install IntelliJ from JetBrains Toolbox, and run `claude` once.
 
