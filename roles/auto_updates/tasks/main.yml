@@ -1,0 +1,84 @@
+---
+# Unattended package updates (Linux). macOS updates itself.
+- name: Fedora automatic updates
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Install dnf-automatic
+      ansible.builtin.dnf:
+        name: dnf-automatic
+        state: present
+
+    - name: Configure dnf-automatic
+      community.general.ini_file:
+        path: /etc/dnf/automatic.conf
+        section: commands
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: "0644"
+      loop:
+        - { option: upgrade_type, value: "{{ auto_updates_type }}" }
+        - { option: apply_updates, value: "yes" }
+
+    - name: Find the dnf-automatic timer
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        systemctl list-unit-files --no-legend 'dnf*-automatic.timer' | awk '{print $1}' | head -1
+      args:
+        executable: /bin/bash
+      register: dnf_automatic_timer
+      changed_when: false
+
+    - name: Enable the dnf-automatic timer
+      ansible.builtin.systemd_service:
+        name: "{{ dnf_automatic_timer.stdout }}"
+        enabled: true
+        state: started
+      when: dnf_automatic_timer.stdout | length > 0
+
+- name: Debian/Ubuntu automatic security updates
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Weekly Flatpak updates
+  when:
+    - ansible_os_family != 'Darwin'
+    - flatpak_auto_update | bool
+  block:
+    - name: Flatpak update service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/flatpak-update.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Update Flatpak apps
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/bin/flatpak update --system --noninteractive --assumeyes
+
+    - name: Flatpak update timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/flatpak-update.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Update Flatpak apps weekly
+
+          [Timer]
+          OnCalendar=weekly
+          Persistent=true
+          RandomizedDelaySec=1h
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Enable the Flatpak update timer
+      ansible.builtin.systemd_service:
+        name: flatpak-update.timer
+        enabled: true
+        state: started
+        daemon_reload: true

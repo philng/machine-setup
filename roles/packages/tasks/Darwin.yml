@@ -1,0 +1,22 @@
+---
+- name: Install Homebrew formulae
+  community.general.homebrew:
+    name: "{{ packages_resolved }}"
+    state: present
+  when: packages_resolved | length > 0
+
+# Only remove formulae that are actually installed, so Linux package names
+# in packages_remove are harmless here.
+- name: List installed Homebrew formulae
+  ansible.builtin.command: brew list --formula -1
+  register: brew_installed
+  changed_when: false
+  when: packages_remove_resolved | length > 0
+
+- name: Remove unwanted Homebrew formulae
+  community.general.homebrew:
+    name: "{{ packages_remove_resolved | intersect(brew_installed.stdout_lines) }}"
+    state: absent
+  when:
+    - packages_remove_resolved | length > 0
+    - packages_remove_resolved | intersect(brew_installed.stdout_lines) | length > 0

@@ -1,0 +1,21 @@
+---
+# Runs as your user, not root.
+- name: Clone or update dotfiles  # noqa: latest[git] (intentionally tracks the default branch)
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ dotfiles_dest }}"
+    update: true
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  register: dotfiles_checkout
+
+- name: Run dotfiles install command
+  ansible.builtin.command:
+    cmd: "{{ dotfiles_install_cmd }}"
+    chdir: "{{ dotfiles_dest }}"
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  when:
+    - dotfiles_install_cmd | length > 0
+    - dotfiles_checkout is changed
+  changed_when: true

@@ -1,0 +1,6 @@
+---
+dotfiles_repo: ""
+dotfiles_dest: "~/.dotfiles"
+# Command run inside the checkout after cloning/updating, e.g. "./install.sh"
+# or "stow -t ~ */". Leave empty to only clone.
+dotfiles_install_cmd: ""

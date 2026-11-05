@@ -1,0 +1,227 @@
+---
+# The one file you normally edit.
+#
+# Linux (Fedora, Debian/Ubuntu): CLI tools come from dnf/apt, GUI apps from Flathub.
+# macOS: CLI tools are Homebrew formulae, GUI apps are Homebrew casks.
+
+# ---------------------------------------------------------------- Linux repos
+# Third-party repos to enable. Known keys: rpmfusion, vscode, docker, ghostty
+# (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
+extra_repos:
+  - docker
+  - vscode
+  - ghostty                # community COPR on Fedora
+  - rpmfusion              # codecs and drivers on Fedora
+
+# ------------------------------------------------------------ CLI packages
+# Installed with dnf/apt on Linux and as Homebrew formulae on macOS.
+# Use a generic name; package_name_map below fixes names that differ.
+packages:
+  - git                    # needed to update this repo
+  - zsh
+  - vim                    # vim-enhanced on Fedora
+  - gh                     # GitHub CLI
+  - fzf                    # fuzzy finder (Ctrl+R history, Ctrl+T files)
+  - bat                    # cat with highlighting ("batcat" on Debian/Ubuntu)
+  - btop                   # system monitor
+  - eza                    # nicer ls
+  - fontconfig             # fc-cache, used by the fonts role
+  - git-delta              # nicer git diffs (configured by the git role)
+  - pciutils               # lspci, used to detect GPUs
+  - python3-psutil         # needed to change GNOME settings
+  - gnome-shell-extension-appindicator   # tray icons in the top bar
+  # Google Drive in Files on Linux (no official Linux client): sign in under
+  # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
+  - gvfs-goa
+  - podman
+  # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
+  # sandbox gets in the way of terminals, SDKs and language servers.
+  - code
+  - ghostty                # terminal; a cask on macOS
+  # Docker Engine (from the docker repo above). On macOS these are skipped
+  # and Docker Desktop comes from the "docker-desktop" cask instead.
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# Native packages to make sure are NOT installed. Globs like "foo*" work.
+# Only installed ones are touched, so Linux-only names are harmless on macOS.
+packages_remove:
+  # Use a trailing * to include add-on packages (e.g. firefox-langpacks):
+  # removal stops with an error rather than silently removing other
+  # packages that depend on one listed here.
+  - "firefox*"             # also firefox-esr on Debian
+  - "chromium*"            # also chromium-browser on Ubuntu
+  - "libreoffice*"
+  # Preinstalled GNOME/Fedora apps you don't use
+  - gnome-tour
+  - gnome-weather
+  - gnome-maps
+  - gnome-contacts
+  - gnome-characters
+  - yelp                   # Help viewer
+  - "rhythmbox*"
+  - totem                  # Videos (older Fedora). Not totem*: that would hit totem-pl-parser, a library GNOME needs
+  - showtime               # Videos (newer Fedora)
+  - cheese
+  - snapshot               # Camera
+  - gnome-connections      # remote desktop client; NoMachine replaces it
+  - simple-scan            # Document Scanner
+
+# Generic name -> name on each OS family. Map to "" to skip it there.
+package_name_map:
+  RedHat:
+    vim: vim-enhanced
+  Debian:
+    gvfs-goa: gvfs-backends
+    ghostty: ""            # no official Debian/Ubuntu package
+  Darwin:                  # these are casks on macOS (zsh is built in)
+    zsh: ""
+    fontconfig: ""
+    pciutils: ""
+    python3-psutil: ""
+    gnome-shell-extension-appindicator: ""
+    gvfs-goa: ""
+    code: ""
+    ghostty: ""
+    docker-ce: ""
+    docker-ce-cli: ""
+    containerd.io: ""
+    docker-buildx-plugin: ""
+    docker-compose-plugin: ""
+
+# ------------------------------------------------------- GUI apps (Linux)
+# GUI apps from Flathub (use the app ID from flathub.org).
+flatpaks:
+  - com.google.Chrome
+  - com.spotify.Client
+  - org.videolan.VLC       # Media Player Classic is Windows-only
+
+# Also remove the Flatpak versions, in case they were installed that way.
+flatpaks_remove:
+  - org.mozilla.firefox
+  - org.chromium.Chromium
+  - org.libreoffice.LibreOffice
+
+# ------------------------------------------------------- GUI apps (macOS)
+# Homebrew casks (names from formulae.brew.sh/cask).
+casks:
+  - google-chrome
+  - spotify
+  - docker-desktop
+  - nomachine
+  - vlc
+  - visual-studio-code
+  - ghostty
+  - jetbrains-toolbox      # then install IntelliJ IDEA from its window
+  - claude                 # Claude desktop app
+  - google-drive
+  - font-jetbrains-mono-nerd-font
+
+casks_remove:
+  - firefox
+  - chromium
+  - libreoffice
+
+# Preinstalled Apple apps to delete (paths). Built-in apps like Safari or Mail
+# live on the read-only system volume and can't be removed.
+mac_apps_remove:
+  - /Applications/GarageBand.app
+  - /Library/Application Support/GarageBand
+  - /Library/Application Support/Logic
+  - /Library/Audio/Apple Loops       # GarageBand's sound library (several GB)
+  - /Applications/iMovie.app
+  - /Applications/Pages.app
+  - /Applications/Numbers.app
+  - /Applications/Keynote.app
+
+# Extra Homebrew taps, e.g. "homebrew/cask-fonts".
+homebrew_taps: []
+
+# ------------------------------------------------------- NoMachine (Linux)
+# Remote desktop server and client in one package. Not in distro repos or on
+# Flathub, so it is downloaded from nomachine.com (latest version, found
+# automatically). On macOS it comes from the "nomachine" cask above.
+nomachine_enabled: true
+# nomachine_url: https://download.nomachine.com/download/X.Y/Linux/nomachine_X.Y.Z_N_x86_64.rpm
+
+# ----------------------------------------------- JetBrains Toolbox (Linux)
+# Downloaded from jetbrains.com into ~/.local/share/JetBrains/Toolbox and
+# self-updating. Install IntelliJ IDEA from its window on first launch.
+jetbrains_toolbox_enabled: true
+
+# ------------------------------------------------------------------- GNOME
+# Desktop settings (skipped without GNOME). Find keys with `gsettings list-recursively`
+# or dconf Editor; text values need inner single quotes.
+gnome_settings:
+  /org/gnome/desktop/interface/color-scheme: "'prefer-dark'"
+  /org/gnome/desktop/interface/gtk-theme: "'Adwaita-dark'"   # older GTK3 apps
+
+# GNOME extensions to switch on (installed as packages above).
+gnome_extensions:
+  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox, NoMachine...)
+
+# --------------------------------------------------------------------- Git
+# Written to ~/.gitconfig. Leave blank to skip. Also sets delta as the diff
+# pager, gh for GitHub https logins, and creates ~/.ssh/id_ed25519 if missing.
+git_user_name: ""
+git_user_email: ""
+
+# ------------------------------------------------------- Updates (Linux)
+# Fedora: dnf-automatic applies security updates daily. Debian/Ubuntu:
+# unattended-upgrades. Plus a weekly Flatpak update timer.
+auto_updates_enabled: true
+auto_updates_type: security       # or "default" for all updates
+
+# ------------------------------------------------- Codecs & GPU (Fedora)
+# Full ffmpeg and GStreamer codecs from RPM Fusion, plus hardware video
+# decoding for Intel/AMD and the NVIDIA driver if an NVIDIA GPU is found.
+multimedia_enabled: true
+
+# ------------------------------------------------------------ Linux system
+# systemd services to enable and start.
+services_enabled:
+  - docker
+
+# Extra groups for your user. Takes effect after logging out and back in.
+user_groups:
+  - docker
+
+# -------------------------------------------------------- mise + uv
+# mise manages language versions per project (Node, Python, Java, Go...);
+# uv manages Python packages and is installed through mise.
+mise_enabled: true
+mise_global_tools:
+  - uv
+
+# ------------------------------------------------------------- Claude Code
+# Installed with Anthropic's native installer into ~/.local/bin (auto-updates).
+# The Claude desktop app is the "claude" cask on macOS.
+claude_code_enabled: true
+
+# ------------------------------------------------------------------- Fonts
+# Nerd Fonts for Linux, installed into ~/.local/share/fonts. Names are the
+# archive names on github.com/ryanoasis/nerd-fonts/releases. On macOS add
+# the font-*-nerd-font cask instead.
+nerd_fonts:
+  - JetBrainsMono
+
+# ------------------------------------------------------------------- Shell
+# zsh as your login shell, with the antidote plugin manager. Creates a
+# starter ~/.zshrc and ~/.zsh_plugins.txt only if you don't have them.
+zsh_enabled: true
+
+# Ghostty terminal theme, written to a starter ~/.config/ghostty/config only
+# if you don't have one. Matches the Catppuccin Mocha vim scheme.
+ghostty_theme: "Catppuccin Mocha"
+
+# vim with the vim-plug plugin manager. Creates a starter ~/.vimrc only if
+# you don't have one.
+vim_enabled: true
+
+# Optional dotfiles role (off by default).
+dotfiles_enabled: false
+dotfiles_repo: https://github.com/philng/dotfiles.git
+dotfiles_dest: "~/.dotfiles"

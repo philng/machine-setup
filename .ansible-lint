@@ -1,0 +1,7 @@
+---
+exclude_paths:
+  - collections/
+skip_list:
+  # vars/apps.yml keys (packages, flatpaks, extra_repos...) are deliberately
+  # short and shared across roles rather than prefixed per role.
+  - var-naming[no-role-prefix]

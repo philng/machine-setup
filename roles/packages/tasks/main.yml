@@ -1,0 +1,15 @@
+---
+- name: Translate generic package names for {{ ansible_os_family }}
+  ansible.builtin.set_fact:
+    packages_resolved: "{{ packages | map('extract', dict(packages | zip(packages)) | combine(name_map)) | select | list }}"
+    packages_remove_resolved: "{{ packages_remove | map('extract', dict(packages_remove | zip(packages_remove)) | combine(name_map)) | select | list }}"
+  vars:
+    name_map: "{{ package_name_map[ansible_os_family] | default({}) }}"
+
+- name: Install packages with Homebrew
+  ansible.builtin.include_tasks: Darwin.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Install packages with the native package manager
+  ansible.builtin.include_tasks: linux.yml
+  when: ansible_os_family != 'Darwin'

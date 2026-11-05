@@ -1,0 +1,5 @@
+---
+auto_updates_enabled: false
+# Fedora: "security" applies only security fixes; "default" applies everything.
+auto_updates_type: security
+flatpak_auto_update: true

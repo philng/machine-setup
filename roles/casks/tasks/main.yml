@@ -1,0 +1,39 @@
+---
+# One at a time, so a cask whose download is broken upstream doesn't stop
+# the others from installing.
+- name: Install Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
+  loop: "{{ casks | reject('in', [] if nomachine_enabled | default(true) | bool else ['nomachine']) | list }}"
+  register: casks_installed
+  ignore_errors: true   # reported by the next task
+  no_log: "{{ casks_sudo_password | length > 0 }}"
+
+- name: Warn about casks that failed to install
+  ansible.builtin.debug:
+    msg:
+      - "These casks failed to install; re-run later or check them with brew install --cask <name>:"
+      - "{{ casks_installed.results | selectattr('failed', 'defined') | selectattr('failed') | map(attribute='item') | list }}"
+  when: casks_installed.results | selectattr('failed', 'defined') | selectattr('failed') | list | length > 0
+
+- name: Remove Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ casks_remove }}"
+    state: absent
+    sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
+  when: casks_remove | length > 0
+  no_log: "{{ casks_sudo_password | length > 0 }}"
+
+# Apple's free App Store apps (GarageBand, iMovie, iWork) aren't casks, so
+# they are removed by path. They are root-owned, hence sudo.
+- name: Remove preinstalled Apple apps
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ mac_apps_remove }}"
+  become: true
+  vars:
+    ansible_become_password: "{{ casks_sudo_password }}"
+  no_log: "{{ casks_sudo_password | length > 0 }}"

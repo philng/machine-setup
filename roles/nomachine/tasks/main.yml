@@ -1,0 +1,99 @@
+---
+# NoMachine (server + client in one package) isn't in distro repos or on
+# Flathub, so on Linux it is installed from nomachine.com's own .rpm/.deb.
+# On macOS it is the "nomachine" Homebrew cask (see casks in vars/apps.yml).
+- name: Check whether NoMachine is installed
+  ansible.builtin.package_facts:
+
+- name: Find and install NoMachine
+  when: "'nomachine' not in ansible_facts.packages"
+  block:
+    # nomachine.com renders its download links with JavaScript, so the latest
+    # version (e.g. 9.8.2_1) is read from the Homebrew cask; Linux packages
+    # use the same version and build number.
+    - name: Look up the latest NoMachine version
+      ansible.builtin.uri:
+        url: "{{ nomachine_version_source }}"
+        return_content: true
+      register: nomachine_cask
+      failed_when: false
+      when: nomachine_url | length == 0
+
+    - name: Build the package link
+      vars:
+        nm_version: >-
+          {{ nomachine_cask.content | default('')
+             | regex_findall('version "([0-9]+[.][0-9]+[.][0-9]+_[0-9]+)"')
+             | default([''], true) | first }}
+        nm_major_minor: "{{ nm_version.split('.')[:2] | join('.') }}"
+        nm_suffix: "{{ nomachine_arch + '.rpm' if ansible_os_family == 'RedHat' else nomachine_deb_arch + '.deb' }}"
+      ansible.builtin.set_fact:
+        nomachine_pkg_url: >-
+          {{ nomachine_url if nomachine_url | length > 0 else
+             ('https://download.nomachine.com/download/' + nm_major_minor + '/Linux/nomachine_'
+              + nm_version + '_' + nm_suffix if nm_version | length > 0 else '') }}
+
+    # The server answers a missing (or refused) file with its home page, so
+    # make sure the link really is a package before handing it to dnf/apt.
+    - name: Check that the link is a package
+      ansible.builtin.uri:
+        url: "{{ nomachine_pkg_url }}"
+        method: HEAD
+      register: nomachine_head
+      failed_when: false
+      when:
+        - nomachine_url | length == 0
+        - nomachine_pkg_url | length > 0
+
+    - name: Drop the link if it isn't a package
+      ansible.builtin.set_fact:
+        nomachine_pkg_url: ""
+      when:
+        - nomachine_url | length == 0
+        - >-
+          nomachine_head.status | default(0) != 200
+          or 'html' in (nomachine_head.content_type | default('html'))
+
+    - name: Warn if no download link was found
+      ansible.builtin.debug:
+        msg:
+          - "Couldn't find a NoMachine {{ nomachine_pkg_ext }} for {{ ansible_architecture }}, so NoMachine was skipped."
+          - "Set nomachine_url in vars/apps.yml to a direct package link and re-run."
+          - "Version lookup status: {{ nomachine_cask.status | default('skipped') }}"
+          - "Package link check: {{ nomachine_head.status | default('skipped') }} {{ nomachine_head.content_type | default('') }}"
+          - "Ended up at: {{ nomachine_head.url | default('') }}"
+      when: nomachine_pkg_url | length == 0
+
+    # A bad download shouldn't stop the rest of the setup.
+    - name: Install NoMachine
+      when: nomachine_pkg_url | length > 0
+      block:
+        - name: Install NoMachine (RPM)
+          ansible.builtin.dnf:
+            name: "{{ nomachine_pkg_url }}"
+            state: present
+            disable_gpg_check: true   # NoMachine doesn't sign its RPMs; fetched over HTTPS
+          when: ansible_os_family == 'RedHat'
+
+        - name: Install NoMachine (deb)
+          ansible.builtin.apt:
+            deb: "{{ nomachine_pkg_url }}"
+          when: ansible_os_family == 'Debian'
+      rescue:
+        - name: Warn that NoMachine failed to install
+          ansible.builtin.debug:
+            msg:
+              - "Installing NoMachine from {{ nomachine_pkg_url }} failed, so it was skipped:"
+              - "{{ ansible_failed_result.msg | default('') }}"
+              - "Set nomachine_url in vars/apps.yml to a direct package link and re-run."
+
+- name: Check for firewalld
+  ansible.builtin.service_facts:
+
+- name: Open the NoMachine port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ nomachine_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'

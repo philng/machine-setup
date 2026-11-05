@@ -1,0 +1,5 @@
+---
+flatpaks: []
+flatpaks_remove: []
+flatpak_remote_name: flathub
+flatpak_remote_url: https://dl.flathub.org/repo/flathub.flatpakrepo

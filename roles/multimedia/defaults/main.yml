@@ -1,0 +1,4 @@
+---
+multimedia_enabled: false
+# Install GPU drivers / hardware video decoding for the GPUs found by lspci.
+multimedia_gpu_drivers: true

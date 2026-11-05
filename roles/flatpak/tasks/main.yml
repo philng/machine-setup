@@ -1,0 +1,34 @@
+---
+- name: Install flatpak
+  ansible.builtin.package:
+    name: flatpak
+    state: present
+
+- name: Add Flathub remote
+  community.general.flatpak_remote:
+    name: "{{ flatpak_remote_name }}"
+    flatpakrepo_url: "{{ flatpak_remote_url }}"
+    method: system
+    state: present
+
+# Fedora ships a filtered Flathub; make sure the full one is usable.
+- name: Make sure Flathub is enabled
+  community.general.flatpak_remote:
+    name: "{{ flatpak_remote_name }}"
+    enabled: true
+    method: system
+
+- name: Install Flatpak apps
+  community.general.flatpak:
+    name: "{{ flatpaks }}"
+    remote: "{{ flatpak_remote_name }}"
+    method: system
+    state: present
+  when: flatpaks | length > 0
+
+- name: Remove Flatpak apps
+  community.general.flatpak:
+    name: "{{ flatpaks_remove }}"
+    method: system
+    state: absent
+  when: flatpaks_remove | length > 0

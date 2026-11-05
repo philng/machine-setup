@@ -1,0 +1,7 @@
+---
+mise_enabled: false
+mise_installer: https://mise.run
+# Tools installed globally with `mise use -g` (each project can pin its own
+# versions in mise.toml).
+mise_global_tools:
+  - uv

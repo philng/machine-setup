@@ -1,0 +1,58 @@
+---
+# ~/.gitconfig settings and an SSH key for {{ target_user }}.
+- name: Configure git for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  block:
+    - name: Set name and email
+      community.general.git_config:
+        scope: global
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+      loop:
+        - { name: user.name, value: "{{ git_user_name }}" }
+        - { name: user.email, value: "{{ git_user_email }}" }
+      when: item.value | length > 0
+
+    - name: Sensible defaults
+      community.general.git_config:
+        scope: global
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+      loop:
+        - { name: init.defaultBranch, value: main }
+        - { name: pull.rebase, value: "true" }
+        - { name: push.autoSetupRemote, value: "true" }
+        - { name: fetch.prune, value: "true" }
+        - { name: merge.conflictstyle, value: zdiff3 }
+        # Use the GitHub CLI for https logins (run `gh auth login` once).
+        - { name: "credential.https://github.com.helper", value: "!gh auth git-credential" }
+        - { name: "credential.https://gist.github.com.helper", value: "!gh auth git-credential" }
+
+    - name: Use delta for diffs
+      community.general.git_config:
+        scope: global
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+      loop:
+        - { name: core.pager, value: delta }
+        - { name: interactive.diffFilter, value: "delta --color-only" }
+        - { name: delta.navigate, value: "true" }
+        - { name: delta.line-numbers, value: "true" }
+        - { name: delta.dark, value: "true" }
+      when: git_use_delta | bool
+
+    - name: Create ~/.ssh
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.ssh"
+        state: directory
+        mode: "0700"
+      when: git_ssh_key | bool
+
+    - name: Create an SSH key (add it to GitHub with `gh ssh-key add ~/.ssh/id_ed25519.pub`)
+      community.crypto.openssh_keypair:
+        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
+        type: ed25519
+        comment: "{{ git_user_email if git_user_email | length > 0 else target_user + '@' + ansible_hostname }}"
+        regenerate: never
+      when: git_ssh_key | bool

@@ -1,0 +1,36 @@
+---
+# GNOME desktop settings for {{ target_user }}. Skipped where GNOME isn't installed.
+- name: Check for GNOME
+  ansible.builtin.stat:
+    path: /usr/bin/gnome-shell
+  register: gnome_shell
+
+- name: Apply GNOME settings
+  community.general.dconf:
+    key: "{{ item.key }}"
+    value: "{{ item.value }}"
+  loop: "{{ gnome_settings | dict2items }}"
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  when: gnome_shell.stat.exists
+
+- name: Enable GNOME extensions
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  when:
+    - gnome_shell.stat.exists
+    - gnome_extensions | length > 0
+  block:
+    - name: Read enabled extensions
+      community.general.dconf:
+        key: /org/gnome/shell/enabled-extensions
+        state: read
+      register: enabled_extensions
+
+    - name: Add extensions to the enabled list
+      community.general.dconf:
+        key: /org/gnome/shell/enabled-extensions
+        value: "{{ (current + gnome_extensions) | unique | to_json | replace('\"', \"'\") }}"
+      vars:
+        current: "{{ (enabled_extensions.value | default('[]', true) | replace(\"'\", '\"') | replace('@as ', '') | from_json) }}"
+      when: gnome_extensions | difference(current) | length > 0
