@@ -39,8 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run the setup and check the result
-        # nomachine.com redirects downloads from GitHub's servers to its home page.
-        run: tests/mac-test.sh --skip-nomachine
+        run: tests/mac-test.sh
 
   windows:
     runs-on: windows-2025
@@ -93,9 +92,8 @@ jobs:
           key: fedora-cloud-43-v1
 
       - name: Run VM test
-        # nomachine.com redirects downloads from GitHub's servers to its home page.
         run: >-
-          tests/vm-test.sh --skip-nomachine --profile ${{ matrix.profile }}
+          tests/vm-test.sh --profile ${{ matrix.profile }}
           --github-user ${{ github.repository_owner }}
           --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }}
 

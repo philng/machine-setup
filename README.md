@@ -82,14 +82,14 @@ sign-in):
   zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
   and full automatic updates that reboot when an update needs it.
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
-  NoMachine, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
+  RustDesk, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
 - **Hardening** ([`roles/server`](roles/server)): your public keys from
   `https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`, SSH root
   and password logins are turned off, so only keys work. If no key is
   authorised the run warns you: add one before you close your session, or
   you'll only be able to log in at the console. fail2ban bans
-  repeated failed SSH logins, and firewalld leaves only SSH (plus NoMachine's
-  port on a GUI server) open.
+  repeated failed SSH logins, and firewalld leaves only SSH open (RustDesk
+  connects out through its relay, so it needs no open port).
 
 Before closing the session that ran it, check you can still SSH in with your key.
 
@@ -128,8 +128,9 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   If macOS says "Operation not permitted", give your terminal App Management access in
   System Settings → Privacy & Security, then re-run.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
-- `nomachine_enabled` – NoMachine server + client from nomachine.com (Linux; a cask on macOS).
-  Set `nomachine_url` to pin a specific package.
+- `rustdesk_enabled` – RustDesk remote desktop from its GitHub releases, with its
+  background service (Linux; a cask on macOS and winget on Windows). Set `rustdesk_version`
+  or `rustdesk_url` to pin a release.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
@@ -166,7 +167,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
+Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `rustdesk`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
 
 ## Layout
 
@@ -180,7 +181,7 @@ roles/snapshots       snapper snapshots around dnf transactions (Fedora)
 roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
-roles/nomachine       NoMachine from nomachine.com (Linux)
+roles/rustdesk        RustDesk from its GitHub releases (Linux)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/multimedia      codecs + GPU drivers (Fedora)
 roles/auto_updates    unattended updates + weekly Flatpak updates
@@ -246,6 +247,5 @@ Actions tab for any branch (optionally with a dotfiles branch to test). After
 - a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.
 
 Each Fedora and Mac test does a setup run, a second run that must change
-nothing, and a `--dry-run` that must report no changes. NoMachine is left out
-of the Fedora and macOS jobs because nomachine.com refuses downloads from
-GitHub's servers. If a Fedora job fails, its logs are attached to the run.
+nothing, and a `--dry-run` that must report no changes. If a Fedora job fails,
+its logs are attached to the run.

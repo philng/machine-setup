@@ -84,12 +84,12 @@
       when:
         - ansible_os_family != 'Darwin'
         - machine_gui | bool
-    - role: nomachine     # NoMachine from nomachine.com (Linux)
+    - role: rustdesk      # RustDesk from its GitHub releases (Linux)
       become: "{{ use_sudo }}"
-      tags: nomachine
+      tags: rustdesk
       when:
         - ansible_os_family != 'Darwin'
-        - nomachine_enabled | bool
+        - rustdesk_enabled | bool
         - machine_gui | bool
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains

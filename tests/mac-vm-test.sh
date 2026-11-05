@@ -6,7 +6,7 @@
 #   brew install cirruslabs/cli/tart     # once
 #   tests/mac-vm-test.sh                 # full test, then delete the VM
 #   tests/mac-vm-test.sh --keep          # leave the VM running afterwards
-#   tests/mac-vm-test.sh --skip-nomachine
+#   tests/mac-vm-test.sh --skip-rustdesk
 #   tests/mac-vm-test.sh --image ghcr.io/cirruslabs/macos-tahoe-base:latest
 #
 # What it does:
@@ -30,7 +30,7 @@ while [ $# -gt 0 ]; do
     --image) IMAGE="$2"; shift 2 ;;
     --disk) DISK_GB="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
-    --skip-nomachine) TEST_ARGS+=(--skip-nomachine); shift ;;
+    --skip-rustdesk) TEST_ARGS+=(--skip-rustdesk); shift ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac

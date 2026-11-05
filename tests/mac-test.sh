@@ -4,7 +4,7 @@
 # and checks the result. Don't run this on your own Mac: it installs and
 # removes apps for real.
 #
-#   tests/mac-test.sh [--skip-nomachine]
+#   tests/mac-test.sh [--skip-rustdesk]
 #
 # 1. Pre-installs Firefox (as a cask) so its removal can be checked.
 # 2. Runs ./bootstrap.sh, then the playbook again and expects changed=0.
@@ -21,10 +21,10 @@ pass() { RESULTS+=("PASS  $1"); printf '\033[32mPASS\033[0m  %s\n' "$1"; }
 fail() { RESULTS+=("FAIL  $1"); printf '\033[31mFAIL\033[0m  %s\n' "$1"; }
 check() { local name="$1"; shift; if bash -lc "$*" >/dev/null 2>&1; then pass "$name"; else fail "$name"; fi; }
 
-SKIP_NOMACHINE=""
-[ "${1:-}" = "--skip-nomachine" ] && SKIP_NOMACHINE=1
+SKIP_RUSTDESK=""
+[ "${1:-}" = "--skip-rustdesk" ] && SKIP_RUSTDESK=1
 EXTRA=()
-[ -n "$SKIP_NOMACHINE" ] && EXTRA=(-e nomachine_enabled=false)
+[ -n "$SKIP_RUSTDESK" ] && EXTRA=(-e rustdesk_enabled=false)
 
 # Non-interactive shells (CI, ssh) may not have Homebrew on PATH yet.
 for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
@@ -60,7 +60,7 @@ fi
 
 log "Checking the result"
 while read -r cask; do
-  [ "$cask" = nomachine ] && [ -n "$SKIP_NOMACHINE" ] && continue
+  [ "$cask" = rustdesk ] && [ -n "$SKIP_RUSTDESK" ] && continue
   check "cask $cask installed" "brew list --cask $cask"
 done < <(sed -n '/^casks:/,/^[a-z_]*:/p' vars/apps.yml | sed -n 's/^  - \([a-z0-9-]*\).*/\1/p')
 check "Firefox removed"                  '! brew list --cask firefox'

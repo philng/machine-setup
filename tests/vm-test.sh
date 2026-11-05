@@ -6,8 +6,7 @@
 #   tests/vm-test.sh --release 42    # another Fedora release
 #   tests/vm-test.sh --keep          # leave the VM running afterwards (ssh command is printed)
 #   tests/vm-test.sh --quick         # skip pre-installing Firefox/Chromium/LibreOffice
-#   tests/vm-test.sh --skip-nomachine  # leave NoMachine out (CI: nomachine.com
-#                                      # refuses downloads from GitHub's servers)
+#   tests/vm-test.sh --skip-rustdesk  # leave RustDesk out
 #   tests/vm-test.sh --profile server  # headless Fedora Server profile
 #   tests/vm-test.sh --github-user NAME [--dotfiles-version REF]
 #                                      # also test NAME's dotfiles (and, on a
@@ -42,7 +41,7 @@ while [ $# -gt 0 ]; do
     --release) RELEASE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
-    --skip-nomachine) SKIP_NOMACHINE=1; shift ;;
+    --skip-rustdesk) SKIP_RUSTDESK=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
@@ -202,7 +201,7 @@ if [ -n "${GITHUB_USER:-}" ]; then
 fi
 
 log "Run 1: ./bootstrap.sh $BOOT_ARGS"
-SKIP_TAGS="${SKIP_NOMACHINE:+nomachine}"
+SKIP_TAGS="${SKIP_RUSTDESK:+rustdesk}"
 if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
@@ -287,9 +286,9 @@ else
   check "JetBrains Toolbox installed"      'test -x ~/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox'
   check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
-  if [ -z "${SKIP_NOMACHINE:-}" ]; then
-    check "NoMachine installed"             'rpm -q nomachine'
-    check "NoMachine server running"        'systemctl is-active --quiet nxserver'
+  if [ -z "${SKIP_RUSTDESK:-}" ]; then
+    check "RustDesk installed"              'rpm -q rustdesk'
+    check "RustDesk service running"        'systemctl is-active --quiet rustdesk'
   fi
 fi
 

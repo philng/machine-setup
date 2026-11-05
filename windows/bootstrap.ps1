@@ -45,7 +45,7 @@ $WingetPackages = @(
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'Docker.DockerDesktop'
     'RedHat.Podman'
-    'NoMachine.NoMachine'          # server + client
+    'RustDesk.RustDesk'            # remote desktop
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet

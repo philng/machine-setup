@@ -69,7 +69,7 @@ flatpaks_remove:
   - org.mozilla.firefox
 
 # GUI-only extras (their roles are skipped on a headless server).
-nomachine_enabled: true
+rustdesk_enabled: true
 jetbrains_toolbox_enabled: true
 
 # All updates, not just security fixes, and reboot when an update needs it.

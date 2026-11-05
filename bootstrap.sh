@@ -171,8 +171,8 @@ if [ "$PROFILE" = server ]; then
   - Check you can still SSH in from your laptop with your key before closing
     this session: password logins are now off, so only keys work.
   - Run `claude` once to sign in to Claude Code.
-  - GUI server: connect with NoMachine (port 4000), open JetBrains Toolbox and
-    click Install next to IntelliJ IDEA.
+  - GUI server: open RustDesk, note its ID and set a permanent password, then
+    open JetBrains Toolbox and click Install next to IntelliJ IDEA.
 DONE
 else
   cat <<'DONE'
