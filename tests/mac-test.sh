@@ -50,6 +50,14 @@ else
   fail "second run reports changed=0 failed=0"
 fi
 
+log "Run 3: bootstrap.sh --dry-run (should report no changes)"
+./bootstrap.sh --dry-run "${EXTRA[@]}" 2>&1 | tee "$WORK/run3.log" || true
+if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run3.log"; then
+  pass "dry run reports changed=0 failed=0"
+else
+  fail "dry run reports changed=0 failed=0"
+fi
+
 log "Checking the result"
 while read -r cask; do
   [ "$cask" = nomachine ] && [ -n "$SKIP_NOMACHINE" ] && continue
@@ -66,6 +74,10 @@ check "mise and uv installed"            '~/.local/bin/mise which uv'
 check "Ghostty config has the theme"     'grep -q "^theme = " ~/.config/ghostty/config'
 check "git uses delta"                   '[ "$(git config --global core.pager)" = delta ]'
 check "SSH key created"                  '[ -f ~/.ssh/id_ed25519.pub ]'
+check "dark mode on"                     '[ "$(defaults read -g AppleInterfaceStyle)" = Dark ]'
+check "Dock hides automatically"         '[ "$(defaults read com.apple.dock autohide)" = 1 ]'
+check "fast key repeat"                  '[ "$(defaults read -g KeyRepeat)" = 2 ]'
+check "Finder shows extensions and hidden files" '[ "$(defaults read -g AppleShowAllExtensions)" = 1 ] && [ "$(defaults read com.apple.finder AppleShowAllFiles)" = 1 ]'
 check "GarageBand removed"               '[ ! -e /Applications/GarageBand.app ]'
 
 log "Summary"

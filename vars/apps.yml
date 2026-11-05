@@ -225,12 +225,23 @@ ghostty_theme: "Catppuccin Mocha"
 # you don't have one.
 vim_enabled: true
 
+# Fedora with btrfs: snapshot / before and after every dnf update, so a bad
+# update can be undone (sudo snapper -c root list / undochange PRE..POST).
+snapshots_enabled: true
+
+# macOS settings (dark mode, Dock auto-hide, fast key repeat, Finder showing
+# extensions and hidden files). See roles/macos/defaults/main.yml to change
+# them; set macos_defaults: [] to leave macOS settings alone.
+
 # Your GitHub username. bootstrap.sh asks for it on the first run and saves
 # it in vars/local.yml. Used for the dotfiles repo below and, on servers, to
 # fetch the SSH keys allowed to log in (https://github.com/<user>.keys).
 github_user: ""
 
-# Optional dotfiles role (off by default).
-dotfiles_enabled: false
+# Your dotfiles repo, cloned to ~/.dotfiles; every file under its home/
+# folder is linked into ~ (an existing file is kept as <file>.pre-dotfiles).
+# Skipped if the repo doesn't exist. Without it, the zsh, vim and ghostty
+# roles write starter configs instead.
+dotfiles_enabled: true
 dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 dotfiles_dest: "~/.dotfiles"

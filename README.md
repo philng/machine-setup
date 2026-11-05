@@ -31,6 +31,33 @@ installs the Ansible collections, and runs the playbook. Along the way it:
 
 Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped.
 
+To preview what a run would change on a machine that's already set up:
+
+```sh
+~/machine-setup/bootstrap.sh --dry-run
+```
+
+## Dotfiles
+
+Your shell, editor and terminal config live in a separate `dotfiles` repo
+(`https://github.com/<github_user>/dotfiles` by default). It's cloned to
+`~/.dotfiles`, and every file under its `home/` folder is linked into your home
+directory, e.g. `home/.zshrc` → `~/.zshrc`. A file that's already there is kept
+as `<file>.pre-dotfiles`. Edit the files in `~/.dotfiles`, commit and push, and
+every machine picks them up on its next run. Without a dotfiles repo, the zsh,
+vim and Ghostty roles write starter configs instead.
+
+## Update snapshots (Fedora)
+
+On a btrfs system (Fedora's default), snapper takes a snapshot of `/` before and
+after every `dnf` transaction, including the automatic updates, keeping the last
+10 pairs. To undo a bad update:
+
+```sh
+sudo snapper -c root list                    # find the pre/post pair
+sudo snapper -c root undochange 42..43       # put files back as they were at 42
+```
+
 ## Making it yours
 
 Nothing in the playbook is tied to one person. Fork the repo, then either edit
@@ -124,7 +151,11 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `multimedia_enabled` – full ffmpeg/GStreamer codecs from RPM Fusion and GPU drivers (Intel/AMD
   video decoding, NVIDIA driver). With Secure Boot, NVIDIA needs a one-time key enrollment.
 - `services_enabled`, `user_groups` – e.g. `docker` (Linux).
-- `dotfiles_enabled` – clone `dotfiles_repo` and optionally run `dotfiles_install_cmd`.
+- `dotfiles_enabled`, `dotfiles_repo`, `dotfiles_version` – clone your dotfiles and link
+  `home/` into `~` (see Dotfiles above).
+- `snapshots_enabled` – snapper snapshots before/after every dnf transaction (Fedora, btrfs).
+- `macos_defaults` – macOS settings: dark mode, Dock auto-hide, fast key repeat, Finder
+  showing extensions and hidden files (`roles/macos/defaults/main.yml`).
 
 Then re-run:
 
@@ -132,17 +163,20 @@ Then re-run:
 ansible-playbook site.yml -K                      # everything (Linux)
 ansible-playbook site.yml                         # everything (macOS, no -K)
 ansible-playbook site.yml -K --tags flatpak       # just one part
-ansible-playbook site.yml -K --check --diff       # dry run
+ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `repos`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`.
+Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `nomachine`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
 
 ## Layout
 
 ```
 site.yml              the playbook (localhost)
-vars/apps.yml         your app lists
+vars/apps.yml         your app lists (desktop profile)
+vars/server.yml       server profile overrides
+vars/local.yml        per-machine settings (not committed)
 roles/repos           Linux repos (per-distro task files) / Homebrew taps
+roles/snapshots       snapper snapshots around dnf transactions (Fedora)
 roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
@@ -152,7 +186,9 @@ roles/multimedia      codecs + GPU drivers (Fedora)
 roles/auto_updates    unattended updates + weekly Flatpak updates
 roles/gnome           GNOME settings via dconf
 roles/git_setup       ~/.gitconfig, delta, gh logins, SSH key
-roles/dotfiles        optional dotfiles checkout
+roles/dotfiles        your dotfiles repo, linked into ~
+roles/macos           macOS settings (defaults write)
+roles/server          SSH keys, key-only SSH, fail2ban, firewall (server profile)
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
 roles/ghostty         starter Ghostty config
@@ -161,6 +197,7 @@ roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
 bootstrap.sh          first-run installer
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
+tests/mac-test.sh     the macOS checks (CI runner or tests/mac-vm-test.sh)
 ```
 
 On macOS, some cask installers need sudo; when run through `bootstrap.sh` the
@@ -198,11 +235,17 @@ on your Mac: it installs and removes apps for real.
 
 ### In CI
 
-GitHub Actions (`.github/workflows/test.yml`) runs on every push to `main`, and
-can be started by hand from the Actions tab for any branch. It runs
-`ansible-lint` and `shellcheck`, then three jobs in parallel: the Fedora VM test,
-`tests/mac-test.sh` on a macOS runner, and a Windows job that lints
-`windows/bootstrap.ps1` and checks every winget ID exists. NoMachine is left out
+GitHub Actions (`.github/workflows/test.yml`) runs on every push to `main`, on
+the 1st of every month (to catch upstream breakage), and by hand from the
+Actions tab for any branch (optionally with a dotfiles branch to test). After
+`ansible-lint` and `shellcheck` it runs, in parallel:
+
+- the Fedora VM test for the desktop and the headless server profile, each with
+  the repo owner's dotfiles;
+- `tests/mac-test.sh` on a macOS runner;
+- a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.
+
+Each Fedora and Mac test does a setup run, a second run that must change
+nothing, and a `--dry-run` that must report no changes. NoMachine is left out
 of the Fedora and macOS jobs because nomachine.com refuses downloads from
-GitHub's servers. If the Fedora job fails, its logs are attached to the run as
-`vm-test-logs`.
+GitHub's servers. If a Fedora job fails, its logs are attached to the run.

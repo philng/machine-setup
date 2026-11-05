@@ -65,6 +65,12 @@
     - role: repos         # Linux repos, or Homebrew taps on macOS
       become: "{{ use_sudo }}"
       tags: repos
+    - role: snapshots     # btrfs snapshots before/after every dnf update (Fedora)
+      become: "{{ use_sudo }}"
+      tags: snapshots
+      when:
+        - ansible_distribution == 'Fedora'
+        - snapshots_enabled | bool
     - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
       become: "{{ use_sudo }}"
       tags: packages
@@ -91,6 +97,12 @@
         - ansible_os_family != 'Darwin'
         - jetbrains_toolbox_enabled | bool
         - machine_gui | bool
+    - role: dotfiles      # your dotfiles repo, linked into ~ (before vim/ghostty/zsh,
+      tags: dotfiles      # whose starter configs are only written if missing)
+      when:
+        - dotfiles_enabled | bool
+        - dotfiles_repo | length > 0
+        - dotfiles_repo is not search('github.com//')   # github_user not set
     - role: vim           # vim-plug + starter ~/.vimrc (after dotfiles)
       tags: vim
       when: vim_enabled | bool
@@ -114,6 +126,9 @@
       become: "{{ use_sudo }}"
       tags: casks
       when: ansible_os_family == 'Darwin'
+    - role: macos         # dark mode, Dock, key repeat, Finder (macOS)
+      tags: macos
+      when: ansible_os_family == 'Darwin'
     - role: auto_updates  # dnf-automatic / unattended-upgrades + weekly Flatpak updates
       become: "{{ use_sudo }}"
       tags: updates
@@ -127,9 +142,6 @@
         - machine_gui | bool
     - role: git_setup     # ~/.gitconfig, delta, gh logins, SSH key
       tags: git
-    - role: dotfiles
-      tags: dotfiles
-      when: dotfiles_enabled | bool
     - role: zsh           # antidote + zsh as login shell (after dotfiles)
       tags: zsh
       when: zsh_enabled | bool

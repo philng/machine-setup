@@ -9,6 +9,9 @@
 #   tests/vm-test.sh --skip-nomachine  # leave NoMachine out (CI: nomachine.com
 #                                      # refuses downloads from GitHub's servers)
 #   tests/vm-test.sh --profile server  # headless Fedora Server profile
+#   tests/vm-test.sh --github-user NAME [--dotfiles-version REF]
+#                                      # also test NAME's dotfiles (and, on a
+#                                      # server, NAME's GitHub SSH keys)
 #
 # What it does:
 #   1. Downloads the Fedora Cloud image once (cached in ~/.cache/machine-setup-vm)
@@ -41,6 +44,8 @@ while [ $# -gt 0 ]; do
     --quick) QUICK=1; shift ;;
     --skip-nomachine) SKIP_NOMACHINE=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --github-user) GITHUB_USER="$2"; shift 2 ;;
+    --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
     -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -185,11 +190,15 @@ failed_role() {
 
 # The cloud image has no desktop, so the server profile runs headless.
 if [ "$PROFILE" = server ]; then
-  BOOT_ARGS="--profile server --headless"
   PB_ARGS="-e profile=server -e machine_gui=false"
+  BOOT_ARGS="--profile server --headless"
 else
-  BOOT_ARGS=""
   PB_ARGS=""
+  BOOT_ARGS=""
+fi
+if [ -n "${GITHUB_USER:-}" ]; then
+  PB_ARGS="$PB_ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
+  BOOT_ARGS="$BOOT_ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
 fi
 
 log "Run 1: ./bootstrap.sh $BOOT_ARGS"
@@ -221,6 +230,14 @@ else
   fail "second run reports changed=0 failed=0"
 fi
 
+log "Run 3: bootstrap.sh --dry-run (should report no changes)"
+vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS --dry-run ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run3.log" || true
+if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run3.log"; then
+  pass "dry run reports changed=0 failed=0"
+else
+  fail "dry run reports changed=0 failed=0"
+fi
+
 # A new ssh session so the new docker group membership applies.
 log "Checking the result ($PROFILE profile)"
 # Every profile.
@@ -240,6 +257,11 @@ check "dnf-automatic timer enabled"     'systemctl list-unit-files --state=enabl
 check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q --whatprovides gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
+check "dnf takes snapper snapshots"     'before=$(sudo snapper -c root list --columns number | wc -l); sudo dnf install -y -q tree >/dev/null && after=$(sudo snapper -c root list --columns number | wc -l) && [ "$after" -ge $((before + 2)) ]'
+if [ -n "${GITHUB_USER:-}" ]; then
+  # Linked when the repo has a home/ folder; otherwise just cloned.
+  check "dotfiles cloned and linked"    'test -d .dotfiles/.git && { [ ! -d .dotfiles/home ] || { [ -L .zshrc ] && [ -L .vimrc ]; }; }'
+fi
 
 if [ "$PROFILE" = server ]; then
   check "tmux installed"                  'command -v tmux'

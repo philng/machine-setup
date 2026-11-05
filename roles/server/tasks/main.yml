@@ -43,6 +43,7 @@
     executable: /bin/bash
   register: server_key_count
   changed_when: false
+  check_mode: false   # read-only; also runs in --dry-run
 
 - name: Warn when no SSH key is authorised
   ansible.builtin.debug:
@@ -74,6 +75,7 @@
       ansible.builtin.command: firewall-cmd --permanent --list-services
       register: server_fw_services
       changed_when: false
+      check_mode: false   # read-only; also runs in --dry-run
 
     - name: Open the allowed services
       ansible.posix.firewalld:

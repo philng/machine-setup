@@ -40,6 +40,7 @@
       ansible.builtin.command: "{{ mise_bin }} settings get python.uv_venv_auto"
       register: mise_uv_setting
       changed_when: false
+      check_mode: false   # read-only; also runs in --dry-run
       failed_when: false
 
     - name: Turn on python.uv_venv_auto
@@ -52,6 +53,7 @@
       loop: "{{ mise_global_tools }}"
       register: mise_which
       changed_when: false
+      check_mode: false   # read-only; also runs in --dry-run
       failed_when: false
 
     - name: Install global tools with mise

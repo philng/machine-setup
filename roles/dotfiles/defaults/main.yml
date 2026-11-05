@@ -1,6 +1,11 @@
 ---
 dotfiles_repo: ""
 dotfiles_dest: "~/.dotfiles"
-# Command run inside the checkout after cloning/updating, e.g. "./install.sh"
-# or "stow -t ~ */". Leave empty to only clone.
+# Branch, tag or commit to check out.
+dotfiles_version: HEAD
+# Files under this folder of the repo are linked into your home directory
+# (e.g. home/.zshrc -> ~/.zshrc). An existing file that isn't a link yet is
+# moved to <file>.pre-dotfiles first. Empty to only clone.
+dotfiles_link_dir: home
+# Command run inside the checkout after cloning/updating, e.g. "./install.sh".
 dotfiles_install_cmd: ""
