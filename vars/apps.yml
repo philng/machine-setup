@@ -100,6 +100,7 @@ flatpaks:
   - com.google.Chrome
   - com.spotify.Client
   - org.videolan.VLC       # Media Player Classic is Windows-only
+  - com.valvesoftware.Steam
 
 # Also remove the Flatpak versions, in case they were installed that way.
 flatpaks_remove:
@@ -115,6 +116,7 @@ casks:
   - docker-desktop
   - nomachine
   - vlc
+  - steam
   - visual-studio-code
   - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window

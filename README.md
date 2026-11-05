@@ -40,7 +40,7 @@ Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped
 ```
 
 The server profile ([`vars/server.yml`](vars/server.yml)) is a leaner variant
-without the personal bits (no Spotify/VLC, no git name/email prompt, no GitHub
+without the personal bits (no Spotify/VLC/Steam, no git name/email prompt, no GitHub
 sign-in):
 
 - **Every server:** git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,

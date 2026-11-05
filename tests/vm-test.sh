@@ -258,6 +258,7 @@ else
   check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
   check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
   check "VLC Flatpak installed"           'flatpak info org.videolan.VLC'
+  check "Steam Flatpak installed"         'flatpak info com.valvesoftware.Steam'
   check "VS Code installed"                'rpm -q code'
   check "Ghostty installed"                'rpm -q ghostty'
   check "Ghostty theme exists"             'grep -qx "theme = Catppuccin Mocha" .config/ghostty/config && ghostty +list-themes --plain 2>/dev/null | grep -q "^Catppuccin Mocha"'

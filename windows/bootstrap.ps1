@@ -40,6 +40,7 @@ $WingetPackages = @(
     'Google.Chrome'
     'Spotify.Spotify'
     'VideoLAN.VLC'
+    'Valve.Steam'
     'Microsoft.VisualStudioCode'
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'Docker.DockerDesktop'
