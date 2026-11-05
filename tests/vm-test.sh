@@ -158,7 +158,7 @@ vm 'sudo cloud-init status --wait >/dev/null' || true
 # ------------------------------------------------------------ prepare
 if [ "$QUICK" = 0 ]; then
   log "Pre-installing apps the playbook should remove (Firefox, Chromium, LibreOffice, ...)"
-  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc gnome-tour simple-scan'
+  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc unoconv gnome-tour simple-scan'
 fi
 
 log "Copying this working tree into the VM"
@@ -276,7 +276,7 @@ else
   check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
   check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
   check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
-  check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
+  check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ] && ! rpm -q unoconv'
   check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
   check "VLC Flatpak installed"           'flatpak info org.videolan.VLC'
   check "Steam Flatpak installed"         'flatpak info com.valvesoftware.Steam'
