@@ -84,12 +84,12 @@
       when:
         - ansible_os_family != 'Darwin'
         - machine_gui | bool
-    - role: rustdesk      # RustDesk from its GitHub releases (Linux)
+    - role: remote_desktop   # GNOME Remote Login over RDP (Fedora)
       become: "{{ use_sudo }}"
-      tags: rustdesk
+      tags: remote_desktop
       when:
-        - ansible_os_family != 'Darwin'
-        - rustdesk_enabled | bool
+        - ansible_os_family == 'RedHat'
+        - remote_desktop_enabled | bool
         - machine_gui | bool
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains

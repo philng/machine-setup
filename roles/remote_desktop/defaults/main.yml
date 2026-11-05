@@ -1,0 +1,5 @@
+---
+remote_desktop_enabled: false
+remote_desktop_port: 3389
+# Where the self-signed TLS certificate for RDP is kept.
+remote_desktop_tls_dir: /etc/gnome-remote-desktop

@@ -6,7 +6,6 @@
 #   tests/vm-test.sh --release 42    # another Fedora release
 #   tests/vm-test.sh --keep          # leave the VM running afterwards (ssh command is printed)
 #   tests/vm-test.sh --quick         # skip pre-installing Firefox/Chromium/LibreOffice
-#   tests/vm-test.sh --skip-rustdesk  # leave RustDesk out
 #   tests/vm-test.sh --profile server  # headless Fedora Server profile
 #   tests/vm-test.sh --github-user NAME [--dotfiles-version REF]
 #                                      # also test NAME's dotfiles (and, on a
@@ -41,7 +40,6 @@ while [ $# -gt 0 ]; do
     --release) RELEASE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
-    --skip-rustdesk) SKIP_RUSTDESK=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
@@ -192,8 +190,9 @@ if [ "$PROFILE" = server ]; then
   PB_ARGS="-e profile=server -e machine_gui=false"
   BOOT_ARGS="--profile server --headless"
 else
-  PB_ARGS=""
-  BOOT_ARGS=""
+  # Remote Login is a GUI-server default; turn it on here so it's tested.
+  PB_ARGS="-e remote_desktop_enabled=true"
+  BOOT_ARGS="-e remote_desktop_enabled=true"
 fi
 if [ -n "${GITHUB_USER:-}" ]; then
   PB_ARGS="$PB_ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
@@ -201,8 +200,8 @@ if [ -n "${GITHUB_USER:-}" ]; then
 fi
 
 log "Run 1: ./bootstrap.sh $BOOT_ARGS"
-SKIP_TAGS="${SKIP_RUSTDESK:+rustdesk}"
-if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
+SKIP_TAGS=""
+if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS" 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
@@ -222,7 +221,7 @@ else
 fi
 
 log "Run 2: the playbook again (should change nothing)"
-vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run2.log" || true
+vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS" 2>&1 | tee "$WORK/run2.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run2.log"; then
   pass "second run reports changed=0 failed=0"
 else
@@ -230,7 +229,7 @@ else
 fi
 
 log "Run 3: bootstrap.sh --dry-run (should report no changes)"
-vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS --dry-run ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run3.log" || true
+vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS --dry-run" 2>&1 | tee "$WORK/run3.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run3.log"; then
   pass "dry run reports changed=0 failed=0"
 else
@@ -286,10 +285,9 @@ else
   check "JetBrains Toolbox installed"      'test -x ~/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox'
   check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
-  if [ -z "${SKIP_RUSTDESK:-}" ]; then
-    check "RustDesk installed"              'rpm -q rustdesk'
-    check "RustDesk service running"        'systemctl is-active --quiet rustdesk'
-  fi
+  check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
+  check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
+  check "RDP port open in the firewall"   'sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
 fi
 
 # ------------------------------------------------------------ summary

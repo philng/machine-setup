@@ -1,0 +1,73 @@
+---
+# GNOME Remote Login: RDP into this machine's login screen with nobody
+# logged in (GNOME 46+). Connect with any RDP client. The RDP user name and
+# password are separate from your account's and are set once by hand:
+#   sudo grdctl --system rdp set-credentials <user> <password>
+# (or Settings > System > Remote Desktop > Remote Login).
+- name: Install GNOME Remote Desktop
+  ansible.builtin.dnf:
+    name: [gnome-remote-desktop, openssl]
+    state: present
+
+- name: Create the certificate folder
+  ansible.builtin.file:
+    path: "{{ remote_desktop_tls_dir }}"
+    state: directory
+    owner: gnome-remote-desktop
+    group: gnome-remote-desktop
+    mode: "0700"
+
+- name: Create a self-signed TLS certificate for RDP
+  ansible.builtin.command:
+    cmd: >-
+      openssl req -x509 -newkey rsa:4096 -nodes -sha256 -days 3650
+      -subj /CN={{ ansible_facts.hostname }}
+      -keyout {{ remote_desktop_tls_dir }}/rdp-tls.key
+      -out {{ remote_desktop_tls_dir }}/rdp-tls.crt
+    creates: "{{ remote_desktop_tls_dir }}/rdp-tls.crt"
+
+- name: Let the remote desktop service read the certificate
+  ansible.builtin.file:
+    path: "{{ remote_desktop_tls_dir }}/{{ item }}"
+    owner: gnome-remote-desktop
+    group: gnome-remote-desktop
+    mode: "0600"
+  loop: [rdp-tls.key, rdp-tls.crt]
+  when: not ansible_check_mode
+
+- name: Start the remote desktop service
+  ansible.builtin.systemd_service:
+    name: gnome-remote-desktop
+    enabled: true
+    state: started
+
+- name: Read the Remote Login settings
+  ansible.builtin.command: grdctl --system status
+  register: grd_status
+  changed_when: false
+  failed_when: false
+  check_mode: false   # read-only; also runs in --dry-run
+
+- name: Use the certificate
+  ansible.builtin.command: grdctl --system rdp set-tls-{{ item.kind }} {{ remote_desktop_tls_dir }}/{{ item.file }}
+  loop:
+    - { kind: cert, file: rdp-tls.crt }
+    - { kind: key, file: rdp-tls.key }
+  when: (remote_desktop_tls_dir + '/' + item.file) not in grd_status.stdout | default('')
+  changed_when: true
+
+- name: Turn on Remote Login
+  ansible.builtin.command: grdctl --system rdp enable
+  when: grd_status.stdout | default('') is not search('RDP:\s*\n\s*Status:\s*enabled')
+  changed_when: true
+
+- name: Check for firewalld
+  ansible.builtin.service_facts:
+
+- name: Open the RDP port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ remote_desktop_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: ansible_facts.services['firewalld.service'].state | default('') == 'running'

@@ -171,8 +171,10 @@ if [ "$PROFILE" = server ]; then
   - Check you can still SSH in from your laptop with your key before closing
     this session: password logins are now off, so only keys work.
   - Run `claude` once to sign in to Claude Code.
-  - GUI server: open RustDesk, note its ID and set a permanent password, then
-    open JetBrains Toolbox and click Install next to IntelliJ IDEA.
+  - GUI server: choose a remote desktop user name and password with
+      sudo grdctl --system rdp set-credentials <user> <password>
+    then connect with any RDP client to this machine's address (port 3389).
+    Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
 DONE
 else
   cat <<'DONE'

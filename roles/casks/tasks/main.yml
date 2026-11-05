@@ -6,7 +6,7 @@
     name: "{{ item }}"
     state: present
     sudo_password: "{{ casks_sudo_password | default(omit, true) }}"
-  loop: "{{ casks | reject('in', [] if rustdesk_enabled | default(true) | bool else ['rustdesk']) | list }}"
+  loop: "{{ casks }}"
   register: casks_installed
   ignore_errors: true   # reported by the next task
   no_log: "{{ casks_sudo_password | length > 0 }}"

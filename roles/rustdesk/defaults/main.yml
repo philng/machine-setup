@@ -1,8 +1,0 @@
----
-rustdesk_enabled: false
-# Leave empty to install the latest release, or pin a version such as "1.4.3".
-rustdesk_version: ""
-# Leave empty to build the link from the version, or give a direct link to a
-# .rpm/.deb from https://github.com/rustdesk/rustdesk/releases .
-rustdesk_url: ""
-rustdesk_repo: https://github.com/rustdesk/rustdesk

@@ -69,7 +69,7 @@ packages_remove:
   - showtime               # Videos (newer Fedora)
   - cheese
   - snapshot               # Camera
-  - gnome-connections      # remote desktop client; RustDesk replaces it
+  - gnome-connections      # remote desktop client (use any RDP client instead)
   - simple-scan            # Document Scanner
 
 # Generic name -> name on each OS family. Map to "" to skip it there.
@@ -114,7 +114,6 @@ casks:
   - google-chrome
   - spotify
   - docker-desktop
-  - rustdesk
   - vlc
   - steam
   - visual-studio-code
@@ -144,12 +143,10 @@ mac_apps_remove:
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
 
-# -------------------------------------------------------- RustDesk (Linux)
-# Open-source remote desktop, client and host in one package. Installed from
-# its GitHub releases (latest version, found automatically) so its background
-# service is included. On macOS it comes from the "rustdesk" cask above.
-rustdesk_enabled: true
-# rustdesk_version: "1.4.3"
+# ------------------------------------------------- Remote desktop (Fedora)
+# GNOME Remote Login: RDP into the login screen with nobody logged in, and
+# port 3389 opened. On by default for a GUI server (vars/server.yml).
+remote_desktop_enabled: false
 
 # ----------------------------------------------- JetBrains Toolbox (Linux)
 # Downloaded from jetbrains.com into ~/.local/share/JetBrains/Toolbox and
@@ -165,7 +162,7 @@ gnome_settings:
 
 # GNOME extensions to switch on (installed as packages above).
 gnome_extensions:
-  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox, RustDesk...)
+  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox...)
 
 # --------------------------------------------------------------------- Git
 # Written to ~/.gitconfig. Leave blank to skip. Also sets delta as the diff

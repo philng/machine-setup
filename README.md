@@ -82,14 +82,14 @@ sign-in):
   zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
   and full automatic updates that reboot when an update needs it.
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
-  RustDesk, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
+  GNOME Remote Login over RDP, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
 - **Hardening** ([`roles/server`](roles/server)): your public keys from
   `https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`, SSH root
   and password logins are turned off, so only keys work. If no key is
   authorised the run warns you: add one before you close your session, or
   you'll only be able to log in at the console. fail2ban bans
-  repeated failed SSH logins, and firewalld leaves only SSH open (RustDesk
-  connects out through its relay, so it needs no open port).
+  repeated failed SSH logins, and firewalld leaves only SSH open (plus RDP on
+  a GUI server).
 
 Before closing the session that ran it, check you can still SSH in with your key.
 
@@ -97,7 +97,7 @@ Before closing the session that ran it, check you can still SSH in with your key
 
 Ansible can't run on Windows, so Windows has its own script,
 [`windows/bootstrap.ps1`](windows/bootstrap.ps1). It installs the same apps with
-winget (Windows Terminal in place of Ghostty, RustDesk from its GitHub releases), removes preinstalled Store apps
+winget (Windows Terminal in place of Ghostty), removes preinstalled Store apps
 (News, Weather, Maps, People, Tips, Clipchamp, Solitaire and so on), turns on dark
 mode, installs Claude Code and mise + uv, sets up git the same way, and creates an
 SSH key. On the first run it asks for your git name and email (unless you pass
@@ -128,9 +128,9 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   If macOS says "Operation not permitted", give your terminal App Management access in
   System Settings → Privacy & Security, then re-run.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
-- `rustdesk_enabled` – RustDesk remote desktop from its GitHub releases, with its
-  background service (Linux; a cask on macOS, its .msi on Windows). Set `rustdesk_version`
-  or `rustdesk_url` to pin a release.
+- `remote_desktop_enabled` – GNOME Remote Login on Fedora: RDP into the login screen with
+  nobody logged in, port 3389 opened. On for a GUI server; set the RDP user name and password once
+  with `sudo grdctl --system rdp set-credentials <user> <password>`.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
@@ -167,7 +167,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `rustdesk`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
+Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `remote_desktop`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
 
 ## Layout
 
@@ -181,7 +181,7 @@ roles/snapshots       snapper snapshots around dnf transactions (Fedora)
 roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
-roles/rustdesk        RustDesk from its GitHub releases (Linux)
+roles/remote_desktop  GNOME Remote Login over RDP (Fedora)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/multimedia      codecs + GPU drivers (Fedora)
 roles/auto_updates    unattended updates + weekly Flatpak updates
