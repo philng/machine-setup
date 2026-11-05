@@ -287,7 +287,8 @@ else
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
   check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
   check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
-  check "RDP port open in the firewall"   'sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
+  # (The cloud image doesn't run firewalld; Fedora Workstation does.)
+  check "RDP port open if firewalld runs" '! systemctl is-active --quiet firewalld || sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
 fi
 
 # ------------------------------------------------------------ summary

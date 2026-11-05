@@ -59,7 +59,6 @@ server_gui_packages_remove:
   - showtime
   - cheese
   - snapshot
-  - gnome-connections
   - simple-scan
 
 # Flatpaks (GUI only; the flatpak role is skipped on a headless server).

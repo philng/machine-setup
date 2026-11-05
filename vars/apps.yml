@@ -69,7 +69,6 @@ packages_remove:
   - showtime               # Videos (newer Fedora)
   - cheese
   - snapshot               # Camera
-  - gnome-connections      # remote desktop client (use any RDP client instead)
   - simple-scan            # Document Scanner
 
 # Generic name -> name on each OS family. Map to "" to skip it there.
