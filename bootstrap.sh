@@ -154,12 +154,19 @@ fi
 if [ "$PROFILE" = desktop ] && have_tty && command -v gh >/dev/null 2>&1; then
   if ! gh auth status >/dev/null 2>&1; then
     echo "==> Signing in to GitHub (choose SSH, and say yes to uploading your key)"
-    run gh auth login --hostname github.com --git-protocol ssh --web || true
-  elif [ -f "$HOME/.ssh/id_ed25519.pub" ] \
-       && ! gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$HOME/.ssh/id_ed25519.pub")"; then
-    echo "==> Adding this machine's SSH key to GitHub"
-    run gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$(hostname -s 2>/dev/null || hostname)" \
-      || echo "    Couldn't add it; run: gh auth refresh -s admin:public_key && gh ssh-key add ~/.ssh/id_ed25519.pub"
+    run gh auth login --hostname github.com --git-protocol ssh --web -s admin:public_key || true
+  elif [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+    # Reading and adding SSH keys needs the admin:public_key scope, which a
+    # plain `gh auth login` doesn't grant, so ask for it first if it's missing.
+    if ! gh auth status 2>&1 | grep -q 'admin:public_key'; then
+      echo "==> Letting gh manage your SSH keys (approve in the browser)"
+      run gh auth refresh --hostname github.com -s admin:public_key || true
+    fi
+    if ! gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$HOME/.ssh/id_ed25519.pub")"; then
+      echo "==> Adding this machine's SSH key to GitHub"
+      run gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$(hostname -s 2>/dev/null || hostname)" \
+        || echo "    Couldn't add it; run: gh auth refresh -s admin:public_key && gh ssh-key add ~/.ssh/id_ed25519.pub"
+    fi
   fi
 fi
 
