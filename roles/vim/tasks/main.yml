@@ -12,7 +12,14 @@
         state: directory
         mode: "0755"
 
+    - name: Check for vim-plug
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.vim/autoload/plug.vim"
+      register: vim_plug_file
+
+    # Skipped when present (get_url reports a change in --check mode otherwise).
     - name: Install vim-plug
+      when: not vim_plug_file.stat.exists
       ansible.builtin.get_url:
         url: "{{ vim_plug_url }}"
         dest: "{{ ansible_env.HOME }}/.vim/autoload/plug.vim"
