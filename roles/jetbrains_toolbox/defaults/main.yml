@@ -1,6 +1,6 @@
 ---
 jetbrains_toolbox_enabled: false
 # Where Toolbox installs itself; it self-updates here, so it is user-owned.
-jetbrains_toolbox_dir: "{{ ansible_env.HOME }}/.local/share/JetBrains/Toolbox"
+jetbrains_toolbox_dir: "{{ ansible_facts.env.HOME }}/.local/share/JetBrains/Toolbox"
 jetbrains_toolbox_api: https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release
-jetbrains_toolbox_platform: "{{ 'linuxARM64' if ansible_architecture == 'aarch64' else 'linux' }}"
+jetbrains_toolbox_platform: "{{ 'linuxARM64' if ansible_facts.architecture == 'aarch64' else 'linux' }}"

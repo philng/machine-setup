@@ -1,0 +1,51 @@
+---
+# Tailscale from its official repo (Linux). On macOS it's the
+# "tailscale-app" cask, on Windows the Tailscale.Tailscale winget package.
+- name: Tailscale repo (Fedora)
+  ansible.builtin.yum_repository:
+    name: tailscale-stable
+    description: Tailscale stable
+    baseurl: https://pkgs.tailscale.com/stable/fedora/$basearch
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey: https://pkgs.tailscale.com/stable/fedora/repo.gpg
+  when: ansible_facts.os_family == 'RedHat'
+
+- name: Tailscale repo (Debian/Ubuntu)
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: "https://pkgs.tailscale.com/stable/{{ ansible_facts.distribution | lower }}"
+    suites: "{{ ansible_facts.distribution_release }}"
+    components: main
+    signed_by: "https://pkgs.tailscale.com/stable/{{ ansible_facts.distribution | lower }}/{{ ansible_facts.distribution_release }}.noarmor.gpg"
+  register: tailscale_repo
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Install Tailscale
+  ansible.builtin.package:
+    name: tailscale
+    state: present
+    update_cache: "{{ tailscale_repo is changed }}"
+
+- name: Start tailscaled
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Check whether this machine is in a tailnet
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false   # read-only; also runs in --dry-run
+
+- name: Join the tailnet with the auth key
+  ansible.builtin.command:
+    argv: "{{ ['tailscale', 'up', '--authkey', tailscale_authkey] + tailscale_up_args }}"
+  no_log: true
+  changed_when: true
+  when:
+    - tailscale_authkey | length > 0
+    - (tailscale_status.stdout | default('{}') | from_json).BackendState | default('') != 'Running'

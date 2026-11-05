@@ -7,29 +7,29 @@
   block:
     - name: Check whether Claude Code is installed
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.local/bin/claude"
+        path: "{{ ansible_facts.env.HOME }}/.local/bin/claude"
       register: claude_bin
 
     - name: Make sure ~/.cache exists
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.cache"
+        path: "{{ ansible_facts.env.HOME }}/.cache"
         state: directory
         mode: "0755"
 
     - name: Download the Claude Code installer
       ansible.builtin.get_url:
         url: "{{ claude_code_installer }}"
-        dest: "{{ ansible_env.HOME }}/.cache/claude-install.sh"
+        dest: "{{ ansible_facts.env.HOME }}/.cache/claude-install.sh"
         mode: "0700"
       when: not claude_bin.stat.exists
 
     - name: Run the Claude Code installer
       ansible.builtin.command:
-        cmd: bash {{ ansible_env.HOME }}/.cache/claude-install.sh
-        creates: "{{ ansible_env.HOME }}/.local/bin/claude"
+        cmd: bash {{ ansible_facts.env.HOME }}/.cache/claude-install.sh
+        creates: "{{ ansible_facts.env.HOME }}/.local/bin/claude"
       when: not claude_bin.stat.exists
 
     - name: Remove the installer
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.cache/claude-install.sh"
+        path: "{{ ansible_facts.env.HOME }}/.cache/claude-install.sh"
         state: absent

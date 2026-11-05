@@ -45,6 +45,7 @@ $WingetPackages = @(
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'Docker.DockerDesktop'
     'RedHat.Podman'
+    'Tailscale.Tailscale'
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet
@@ -262,5 +263,6 @@ What's left to do by hand:
   - Sign in to Chrome, Spotify, Google Drive and the Claude app.
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
   - Run `claude` once in a terminal to sign in to Claude Code.
+  - Open Tailscale from the Start menu and sign in.
 '@
 if ($failed.Count -gt 0) { exit 1 }

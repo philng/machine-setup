@@ -15,14 +15,14 @@
 
     - name: Create a starter plugin list
       ansible.builtin.copy:
-        dest: "{{ ansible_env.HOME }}/.zsh_plugins.txt"
+        dest: "{{ ansible_facts.env.HOME }}/.zsh_plugins.txt"
         content: "{{ antidote_plugins | join('\n') }}\n"
         force: false
         mode: "0644"
 
     - name: Create a starter .zshrc that loads antidote
       ansible.builtin.copy:
-        dest: "{{ ansible_env.HOME }}/.zshrc"
+        dest: "{{ ansible_facts.env.HOME }}/.zshrc"
         force: false
         mode: "0644"
         content: |
@@ -65,4 +65,4 @@
   become: true
   when:
     - zsh_set_default_shell | bool
-    - ansible_os_family != 'Darwin'
+    - ansible_facts.os_family != 'Darwin'

@@ -2,7 +2,7 @@
 zsh_enabled: false
 zsh_set_default_shell: true
 antidote_repo: https://github.com/mattmc3/antidote.git
-antidote_dir: "{{ ansible_env.HOME }}/.antidote"
+antidote_dir: "{{ ansible_facts.env.HOME }}/.antidote"
 # Written to ~/.zsh_plugins.txt only if that file doesn't exist yet.
 antidote_plugins:
   - zsh-users/zsh-completions

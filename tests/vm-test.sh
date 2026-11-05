@@ -158,6 +158,11 @@ if [ "$QUICK" = 0 ]; then
   log "Pre-installing apps the playbook should remove (Firefox, Chromium, LibreOffice, ...)"
   vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc unoconv gnome-tour simple-scan'
 fi
+if [ "$PROFILE" = desktop ]; then
+  # Fedora Workstation runs firewalld; the cloud image doesn't.
+  log "Starting firewalld, as on Fedora Workstation"
+  vm 'sudo dnf install -y -q firewalld && sudo systemctl enable --now firewalld'
+fi
 
 log "Copying this working tree into the VM"
 tar -C "$REPO_DIR" --exclude=./.git --exclude=./collections --exclude=./.ansible -czf - . \
@@ -251,6 +256,7 @@ check "vim plugins installed"            'test -d .vim/plugged/vim-sensible'
 check "gh installed"                     'gh --version'
 check "mise and uv installed"            '.local/bin/mise --version && .local/bin/mise exec -- uv --version'
 check "fzf, bat, btop and eza installed"  'command -v fzf && command -v bat && command -v btop && command -v eza'
+check "Tailscale installed and running"  'rpm -q tailscale && systemctl is-active --quiet tailscaled'
 check "dnf-automatic timer enabled"     'systemctl list-unit-files --state=enabled "dnf*-automatic.timer" | grep -q automatic'
 check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q --whatprovides gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
@@ -288,7 +294,7 @@ else
   check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
   check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
   # (The cloud image doesn't run firewalld; Fedora Workstation does.)
-  check "RDP port open if firewalld runs" '! systemctl is-active --quiet firewalld || sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
+  check "RDP open to Tailscale only"      'sudo firewall-cmd --list-rich-rules | grep -q "100.64.0.0/10.*3389" && ! sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
 fi
 
 # ------------------------------------------------------------ summary
