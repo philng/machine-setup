@@ -1,6 +1,10 @@
 ---
 # Btrfs snapshots of / before and after every dnf transaction (Fedora), so a
 # bad update can be rolled back. Skipped unless / is btrfs.
+- name: Gather mount facts
+  ansible.builtin.setup:
+    gather_subset: ['!all', '!min', 'hardware']
+
 - name: Check that / is btrfs
   ansible.builtin.set_fact:
     snapshots_root_btrfs: "{{ ansible_facts.mounts | selectattr('mount', 'equalto', '/') | map(attribute='fstype') | first | default('') == 'btrfs' }}"
