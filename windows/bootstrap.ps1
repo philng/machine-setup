@@ -45,7 +45,6 @@ $WingetPackages = @(
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'Docker.DockerDesktop'
     'RedHat.Podman'
-    'NoMachine.NoMachine'          # server + client
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet
@@ -107,8 +106,15 @@ if ($CheckOnly) {
     Write-Step 'Checking winget package IDs'
     $missing = @()
     foreach ($id in $WingetPackages) {
-        winget show --id $id --exact --accept-source-agreements --disable-interactivity *> $null
-        if ($LASTEXITCODE -eq 0) { Write-Skip "ok      $id" } else { Write-Warn "missing $id"; $missing += $id }
+        $out = winget show --id $id --exact --accept-source-agreements --disable-interactivity 2>&1
+        if ($LASTEXITCODE -eq 0) { Write-Skip "ok      $id" } else {
+            Write-Warn "missing $id (winget exit code $LASTEXITCODE)"
+            $out | Select-Object -Last 5 | ForEach-Object { Write-Warn "        $_" }
+            # Show close matches so the right ID is easy to find.
+            winget search ($id -split '\.')[-1] --accept-source-agreements --disable-interactivity 2>&1 |
+                Select-Object -Last 8 | ForEach-Object { Write-Warn "        $_" }
+            $missing += $id
+        }
     }
     if ($missing.Count -gt 0) { throw "Unknown winget IDs: $($missing -join ', ')" }
     return

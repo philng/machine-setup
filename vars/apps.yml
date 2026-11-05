@@ -69,7 +69,6 @@ packages_remove:
   - showtime               # Videos (newer Fedora)
   - cheese
   - snapshot               # Camera
-  - gnome-connections      # remote desktop client; NoMachine replaces it
   - simple-scan            # Document Scanner
 
 # Generic name -> name on each OS family. Map to "" to skip it there.
@@ -114,7 +113,6 @@ casks:
   - google-chrome
   - spotify
   - docker-desktop
-  - nomachine
   - vlc
   - steam
   - visual-studio-code
@@ -144,12 +142,10 @@ mac_apps_remove:
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
 
-# ------------------------------------------------------- NoMachine (Linux)
-# Remote desktop server and client in one package. Not in distro repos or on
-# Flathub, so it is downloaded from nomachine.com (latest version, found
-# automatically). On macOS it comes from the "nomachine" cask above.
-nomachine_enabled: true
-# nomachine_url: https://download.nomachine.com/download/X.Y/Linux/nomachine_X.Y.Z_N_x86_64.rpm
+# ------------------------------------------------- Remote desktop (Fedora)
+# GNOME Remote Login: RDP into the login screen with nobody logged in, and
+# port 3389 opened. On by default for a GUI server (vars/server.yml).
+remote_desktop_enabled: false
 
 # ----------------------------------------------- JetBrains Toolbox (Linux)
 # Downloaded from jetbrains.com into ~/.local/share/JetBrains/Toolbox and
@@ -165,7 +161,7 @@ gnome_settings:
 
 # GNOME extensions to switch on (installed as packages above).
 gnome_extensions:
-  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox, NoMachine...)
+  - appindicatorsupport@rgcjonas.gmail.com   # tray icons (Spotify, Toolbox...)
 
 # --------------------------------------------------------------------- Git
 # Written to ~/.gitconfig. Leave blank to skip. Also sets delta as the diff
@@ -225,12 +221,23 @@ ghostty_theme: "Catppuccin Mocha"
 # you don't have one.
 vim_enabled: true
 
+# Fedora with btrfs: snapshot / before and after every dnf update, so a bad
+# update can be undone (sudo snapper -c root list / undochange PRE..POST).
+snapshots_enabled: true
+
+# macOS settings (dark mode, Dock auto-hide, fast key repeat, Finder showing
+# extensions and hidden files). See roles/macos/defaults/main.yml to change
+# them; set macos_defaults: [] to leave macOS settings alone.
+
 # Your GitHub username. bootstrap.sh asks for it on the first run and saves
 # it in vars/local.yml. Used for the dotfiles repo below and, on servers, to
 # fetch the SSH keys allowed to log in (https://github.com/<user>.keys).
 github_user: ""
 
-# Optional dotfiles role (off by default).
-dotfiles_enabled: false
+# Your dotfiles repo, cloned to ~/.dotfiles; every file under its home/
+# folder is linked into ~ (an existing file is kept as <file>.pre-dotfiles).
+# Skipped if the repo doesn't exist. Without it, the zsh, vim and ghostty
+# roles write starter configs instead.
+dotfiles_enabled: true
 dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 dotfiles_dest: "~/.dotfiles"

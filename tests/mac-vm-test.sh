@@ -6,7 +6,6 @@
 #   brew install cirruslabs/cli/tart     # once
 #   tests/mac-vm-test.sh                 # full test, then delete the VM
 #   tests/mac-vm-test.sh --keep          # leave the VM running afterwards
-#   tests/mac-vm-test.sh --skip-nomachine
 #   tests/mac-vm-test.sh --image ghcr.io/cirruslabs/macos-tahoe-base:latest
 #
 # What it does:
@@ -23,14 +22,12 @@ set -euo pipefail
 IMAGE="ghcr.io/cirruslabs/macos-sequoia-base:latest"
 DISK_GB=100
 KEEP=""
-TEST_ARGS=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --image) IMAGE="$2"; shift 2 ;;
     --disk) DISK_GB="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
-    --skip-nomachine) TEST_ARGS+=(--skip-nomachine); shift ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -91,7 +88,7 @@ tar -C "$REPO_DIR" --exclude=./.git --exclude=./collections --exclude=./.ansible
 
 log "Running tests/mac-test.sh in the VM"
 status=0
-vm "cd ~/machine-setup && RUNNER_TEMP=~/mac-test-logs tests/mac-test.sh ${TEST_ARGS[*]:-}" \
+vm "cd ~/machine-setup && RUNNER_TEMP=~/mac-test-logs tests/mac-test.sh" \
   2>&1 | tee "$LOGS/mac-test.log" || status=$?
 
 vm 'tar -C ~ -czf - mac-test-logs 2>/dev/null' | tar -xzf - -C "$LOGS" 2>/dev/null || true

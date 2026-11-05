@@ -31,11 +31,25 @@
     # to turn a glob into a regex.
     glob_regex: "{{ item | replace('.', '[.]') | replace('+', '[+]') | replace('*', '.*') | replace('?', '.') }}"
 
+# allowerasing also removes installed packages that need the unwanted ones
+# (e.g. unoconv needs LibreOffice, the installer's anaconda-webui needs
+# Firefox), like `dnf remove` does; without it dnf refuses.
+- name: Remove unwanted packages (dnf)
+  ansible.builtin.dnf:
+    name: "{{ packages_to_remove | unique }}"
+    state: absent
+    allowerasing: true
+  when:
+    - ansible_os_family == 'RedHat'
+    - packages_to_remove | default([]) | length > 0
+
 - name: Remove unwanted packages
   ansible.builtin.package:
     name: "{{ packages_to_remove | unique }}"
     state: absent
-  when: packages_to_remove | default([]) | length > 0
+  when:
+    - ansible_os_family != 'RedHat'
+    - packages_to_remove | default([]) | length > 0
 
 - name: Enable and start services
   ansible.builtin.systemd_service:

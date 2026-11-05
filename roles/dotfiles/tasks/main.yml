@@ -1,21 +1,100 @@
 ---
+# Clones your dotfiles and links the files under dotfiles_link_dir into ~.
 # Runs as your user, not root.
-- name: Clone or update dotfiles  # noqa: latest[git] (intentionally tracks the default branch)
-  ansible.builtin.git:
-    repo: "{{ dotfiles_repo }}"
-    dest: "{{ dotfiles_dest }}"
-    update: true
+- name: Set up dotfiles for {{ target_user }}
   become: "{{ use_sudo }}"
   become_user: "{{ target_user }}"
-  register: dotfiles_checkout
+  vars:
+    dotfiles_path: "{{ dotfiles_dest | replace('~', ansible_env.HOME, 1) }}"
+  block:
+    - name: Check the dotfiles repo exists  # noqa: command-instead-of-module
+      ansible.builtin.command: git ls-remote --exit-code {{ dotfiles_repo | quote }} HEAD
+      register: dotfiles_remote
+      changed_when: false
+      failed_when: false
+      check_mode: false
 
-- name: Run dotfiles install command
-  ansible.builtin.command:
-    cmd: "{{ dotfiles_install_cmd }}"
-    chdir: "{{ dotfiles_dest }}"
-  become: "{{ use_sudo }}"
-  become_user: "{{ target_user }}"
-  when:
-    - dotfiles_install_cmd | length > 0
-    - dotfiles_checkout is changed
-  changed_when: true
+    - name: Warn that the dotfiles repo couldn't be reached
+      ansible.builtin.debug:
+        msg: "Couldn't reach {{ dotfiles_repo }}, so dotfiles were skipped."
+      when: dotfiles_remote.rc != 0
+
+    - name: Clone or update dotfiles  # noqa: latest[git] (tracks the branch on purpose)
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repo }}"
+        dest: "{{ dotfiles_path }}"
+        version: "{{ dotfiles_version }}"
+        update: true
+      register: dotfiles_checkout
+      when: dotfiles_remote.rc == 0
+
+    - name: Check for the folder of files to link
+      ansible.builtin.stat:
+        path: "{{ dotfiles_path }}/{{ dotfiles_link_dir }}"
+      register: dotfiles_link_stat
+      when:
+        - dotfiles_remote.rc == 0
+        - dotfiles_link_dir | length > 0
+
+    - name: Link dotfiles into place
+      when:
+        - dotfiles_remote.rc == 0
+        - dotfiles_link_dir | length > 0
+        - dotfiles_link_stat.stat.isdir | default(false)
+      block:
+        - name: Find the files to link
+          ansible.builtin.find:
+            paths: "{{ dotfiles_path }}/{{ dotfiles_link_dir }}"
+            recurse: true
+            hidden: true
+            file_type: file
+          register: dotfiles_files
+
+        - name: Work out the links
+          ansible.builtin.set_fact:
+            dotfiles_links: >-
+              {{ dotfiles_files.files | map(attribute='path')
+                 | map('regex_replace', '^' + (dotfiles_path ~ '/' ~ dotfiles_link_dir ~ '/') | regex_escape, '')
+                 | sort | list }}
+
+        - name: Check what is already there
+          ansible.builtin.stat:
+            path: "{{ ansible_env.HOME }}/{{ item }}"
+          loop: "{{ dotfiles_links }}"
+          register: dotfiles_existing
+
+        - name: Back up files the links will replace
+          ansible.builtin.command:
+            cmd: mv {{ (ansible_env.HOME ~ '/' ~ item.item) | quote }} {{ (ansible_env.HOME ~ '/' ~ item.item ~ '.pre-dotfiles') | quote }}
+          loop: "{{ dotfiles_existing.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: item.stat.exists and not item.stat.islnk
+          changed_when: true
+
+        - name: Create parent folders
+          ansible.builtin.file:
+            path: "{{ ansible_env.HOME }}/{{ item }}"
+            state: directory
+            mode: "0755"
+          loop: "{{ dotfiles_links | map('dirname') | select | unique | list }}"
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Link the files
+          ansible.builtin.file:
+            src: "{{ dotfiles_path }}/{{ dotfiles_link_dir }}/{{ item }}"
+            dest: "{{ ansible_env.HOME }}/{{ item }}"
+            state: link
+            force: true
+          loop: "{{ dotfiles_links }}"
+
+    - name: Run dotfiles install command
+      ansible.builtin.command:
+        cmd: "{{ dotfiles_install_cmd }}"
+        chdir: "{{ dotfiles_path }}"
+      when:
+        - dotfiles_remote.rc == 0
+        - dotfiles_install_cmd | length > 0
+        - dotfiles_checkout is changed
+      changed_when: true

@@ -1,0 +1,15 @@
+---
+# macOS settings, written with `defaults write`. Each entry is
+# {domain, key, type, value}. Override macos_defaults in vars/apps.yml or
+# vars/local.yml to change them.
+macos_defaults:
+  # Dark mode
+  - { domain: NSGlobalDomain, key: AppleInterfaceStyle, type: string, value: Dark }
+  # Dock: hide automatically
+  - { domain: com.apple.dock, key: autohide, type: bool, value: true }
+  # Keyboard: fast key repeat with a short delay (log out to apply)
+  - { domain: NSGlobalDomain, key: KeyRepeat, type: int, value: 2 }
+  - { domain: NSGlobalDomain, key: InitialKeyRepeat, type: int, value: 15 }
+  # Finder: show all file extensions and hidden files
+  - { domain: NSGlobalDomain, key: AppleShowAllExtensions, type: bool, value: true }
+  - { domain: com.apple.finder, key: AppleShowAllFiles, type: bool, value: true }

@@ -3,12 +3,14 @@
 #   ./bootstrap.sh                 # from a checkout of this repo
 #   REPO_URL=https://github.com/<you>/machine-setup.git bash <(curl -fsSL <raw URL of this file>)
 #   ./bootstrap.sh --profile server [--gui | --headless]   # Fedora Server
+#   ./bootstrap.sh --dry-run       # show what would change, change nothing
 # Extra args go to ansible-playbook, e.g.  ./bootstrap.sh --tags packages
 set -euo pipefail
 
 # Our own options; everything else is passed through to ansible-playbook.
 PROFILE=desktop
 GUI=""
+DRY_RUN=""
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -17,11 +19,12 @@ while [ $# -gt 0 ]; do
     --server) PROFILE=server; shift ;;
     --gui) GUI=true; shift ;;
     --headless) GUI=false; shift ;;
+    --dry-run|--check) DRY_RUN=1; shift ;;
     *) ARGS+=("$1"); shift ;;
   esac
 done
 case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or server" >&2; exit 2 ;; esac
-ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} "${ARGS[@]}")
+ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} ${DRY_RUN:+--check --diff} ${ARGS[@]+"${ARGS[@]}"})
 set -- "${ARGS[@]}"
 
 REPO_URL="${REPO_URL:-}"   # only needed when not run from a checkout
@@ -85,7 +88,7 @@ yaml_str() { printf "'%s'" "${1//\'/\'\'}"; }
 # Kept in vars/local.yml (not committed), which overrides vars/apps.yml and
 # vars/server.yml. Edit it to change these, or to override anything else.
 LOCAL_VARS="$DEST/vars/local.yml"
-if [ ! -f "$LOCAL_VARS" ] && have_tty; then
+if [ -z "$DRY_RUN" ] && [ ! -f "$LOCAL_VARS" ] && have_tty; then
   echo "==> First run: a few personal settings (saved in vars/local.yml)"
   # Guess the GitHub user from gh, or from the owner of this checkout's remote.
   gh_guess="$(gh api user -q .login 2>/dev/null || true)"
@@ -114,7 +117,13 @@ if [ ! -f "$LOCAL_VARS" ] && have_tty; then
   } > "$LOCAL_VARS"
 fi
 
-echo "==> Running the playbook"
+if [ -n "$DRY_RUN" ]; then
+  echo "==> Dry run: showing what would change (nothing is changed)"
+  echo "    Most useful on a machine that's already set up; on a fresh one, steps"
+  echo "    that depend on earlier installs can't be previewed."
+else
+  echo "==> Running the playbook"
+fi
 
 if [ "$OS" = "Darwin" ]; then
   # Homebrew runs as you, but some cask installers need sudo.
@@ -134,6 +143,12 @@ else
 fi
 
 # --- After the playbook ---------------------------------------------------------
+if [ -n "$DRY_RUN" ]; then
+  echo
+  echo "==> Dry run finished. Lines marked 'changed' are what a real run would do."
+  exit 0
+fi
+
 # Sign in to GitHub and add this machine's SSH key, so cloning and pushing
 # work straight away. gh offers to upload ~/.ssh/id_ed25519.pub during login.
 if [ "$PROFILE" = desktop ] && have_tty && command -v gh >/dev/null 2>&1; then
@@ -156,8 +171,10 @@ if [ "$PROFILE" = server ]; then
   - Check you can still SSH in from your laptop with your key before closing
     this session: password logins are now off, so only keys work.
   - Run `claude` once to sign in to Claude Code.
-  - GUI server: connect with NoMachine (port 4000), open JetBrains Toolbox and
-    click Install next to IntelliJ IDEA.
+  - GUI server: choose a remote desktop user name and password with
+      sudo grdctl --system rdp set-credentials <user> <password>
+    then connect with any RDP client to this machine's address (port 3389).
+    Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
 DONE
 else
   cat <<'DONE'

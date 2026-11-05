@@ -6,9 +6,10 @@
 #   tests/vm-test.sh --release 42    # another Fedora release
 #   tests/vm-test.sh --keep          # leave the VM running afterwards (ssh command is printed)
 #   tests/vm-test.sh --quick         # skip pre-installing Firefox/Chromium/LibreOffice
-#   tests/vm-test.sh --skip-nomachine  # leave NoMachine out (CI: nomachine.com
-#                                      # refuses downloads from GitHub's servers)
 #   tests/vm-test.sh --profile server  # headless Fedora Server profile
+#   tests/vm-test.sh --github-user NAME [--dotfiles-version REF]
+#                                      # also test NAME's dotfiles (and, on a
+#                                      # server, NAME's GitHub SSH keys)
 #
 # What it does:
 #   1. Downloads the Fedora Cloud image once (cached in ~/.cache/machine-setup-vm)
@@ -39,8 +40,9 @@ while [ $# -gt 0 ]; do
     --release) RELEASE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
-    --skip-nomachine) SKIP_NOMACHINE=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --github-user) GITHUB_USER="$2"; shift 2 ;;
+    --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
     -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -154,7 +156,7 @@ vm 'sudo cloud-init status --wait >/dev/null' || true
 # ------------------------------------------------------------ prepare
 if [ "$QUICK" = 0 ]; then
   log "Pre-installing apps the playbook should remove (Firefox, Chromium, LibreOffice, ...)"
-  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc gnome-tour simple-scan'
+  vm 'sudo dnf install -y -q firefox chromium libreoffice-writer libreoffice-calc unoconv gnome-tour simple-scan'
 fi
 
 log "Copying this working tree into the VM"
@@ -185,16 +187,21 @@ failed_role() {
 
 # The cloud image has no desktop, so the server profile runs headless.
 if [ "$PROFILE" = server ]; then
-  BOOT_ARGS="--profile server --headless"
   PB_ARGS="-e profile=server -e machine_gui=false"
+  BOOT_ARGS="--profile server --headless"
 else
-  BOOT_ARGS=""
-  PB_ARGS=""
+  # Remote Login is a GUI-server default; turn it on here so it's tested.
+  PB_ARGS="-e remote_desktop_enabled=true"
+  BOOT_ARGS="-e remote_desktop_enabled=true"
+fi
+if [ -n "${GITHUB_USER:-}" ]; then
+  PB_ARGS="$PB_ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
+  BOOT_ARGS="$BOOT_ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
 fi
 
 log "Run 1: ./bootstrap.sh $BOOT_ARGS"
-SKIP_TAGS="${SKIP_NOMACHINE:+nomachine}"
-if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
+SKIP_TAGS=""
+if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS" 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
@@ -214,11 +221,19 @@ else
 fi
 
 log "Run 2: the playbook again (should change nothing)"
-vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run2.log" || true
+vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS" 2>&1 | tee "$WORK/run2.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run2.log"; then
   pass "second run reports changed=0 failed=0"
 else
   fail "second run reports changed=0 failed=0"
+fi
+
+log "Run 3: bootstrap.sh --dry-run (should report no changes)"
+vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS --dry-run" 2>&1 | tee "$WORK/run3.log" || true
+if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run3.log"; then
+  pass "dry run reports changed=0 failed=0"
+else
+  fail "dry run reports changed=0 failed=0"
 fi
 
 # A new ssh session so the new docker group membership applies.
@@ -240,6 +255,11 @@ check "dnf-automatic timer enabled"     'systemctl list-unit-files --state=enabl
 check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q --whatprovides gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
+check "dnf takes snapper snapshots"     'before=$(sudo snapper -c root list --columns number | wc -l); sudo dnf install -y -q tree >/dev/null && after=$(sudo snapper -c root list --columns number | wc -l) && [ "$after" -ge $((before + 2)) ]'
+if [ -n "${GITHUB_USER:-}" ]; then
+  # Linked when the repo has a home/ folder; otherwise just cloned.
+  check "dotfiles cloned and linked"    'test -d .dotfiles/.git && { [ ! -d .dotfiles/home ] || { [ -L .zshrc ] && [ -L .vimrc ]; }; }'
+fi
 
 if [ "$PROFILE" = server ]; then
   check "tmux installed"                  'command -v tmux'
@@ -255,7 +275,7 @@ else
   check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
   check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
   check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
-  check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
+  check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ] && ! rpm -q unoconv'
   check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
   check "VLC Flatpak installed"           'flatpak info org.videolan.VLC'
   check "Steam Flatpak installed"         'flatpak info com.valvesoftware.Steam'
@@ -265,10 +285,10 @@ else
   check "JetBrains Toolbox installed"      'test -x ~/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox'
   check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
   check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
-  if [ -z "${SKIP_NOMACHINE:-}" ]; then
-    check "NoMachine installed"             'rpm -q nomachine'
-    check "NoMachine server running"        'systemctl is-active --quiet nxserver'
-  fi
+  check "Remote Login service running"   'systemctl is-active --quiet gnome-remote-desktop'
+  check "Remote Login (RDP) turned on"    'sudo grdctl --system status | grep -A1 "^RDP:" | grep -q "Status: enabled"'
+  # (The cloud image doesn't run firewalld; Fedora Workstation does.)
+  check "RDP port open if firewalld runs" '! systemctl is-active --quiet firewalld || sudo firewall-cmd --list-ports | grep -qw 3389/tcp'
 fi
 
 # ------------------------------------------------------------ summary
