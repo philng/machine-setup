@@ -14,7 +14,7 @@ also works on Debian/Ubuntu and macOS. Safe to re-run: a second run changes noth
 The repo is public, so a fresh machine needs nothing signed in first:
 
 ```sh
-git clone https://github.com/philng/machine-setup.git ~/machine-setup
+git clone https://github.com/<you>/machine-setup.git ~/machine-setup   # your fork
 ~/machine-setup/bootstrap.sh
 ```
 
@@ -22,15 +22,23 @@ git clone https://github.com/philng/machine-setup.git ~/machine-setup
 installs the Ansible collections, and runs the playbook. Along the way it:
 
 - asks for your sudo password once;
-- on the first run, asks for your git name and email and saves them in
-  `vars/local.yml` (not committed; it overrides `vars/apps.yml`, so edit or
-  delete it to change them);
+- on the first run, asks for your GitHub username (and, on a desktop, your git
+  name and email) and saves them in `vars/local.yml`;
 - afterwards, signs you in to GitHub with `gh` and uploads the machine's new SSH
   key (or just uploads the key if you're already signed in);
 - ends with the few things left to do by hand: log out and back in, sign in to
   your apps, install IntelliJ from JetBrains Toolbox, and run `claude` once.
 
 Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped.
+
+## Making it yours
+
+Nothing in the playbook is tied to one person. Fork the repo, then either edit
+`vars/apps.yml` (and `vars/server.yml`) in your fork, or keep per-machine
+settings in `vars/local.yml`. That file is gitignored, is created on the first
+run of `bootstrap.sh`, and is loaded last, so any variable in it (`github_user`,
+`git_user_name`, `flatpaks`, `casks`, `ghostty_theme`, ...) wins over the
+defaults.
 
 ## Fedora Server
 
@@ -49,7 +57,7 @@ sign-in):
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
   NoMachine, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
 - **Hardening** ([`roles/server`](roles/server)): your public keys from
-  `https://github.com/philng.keys` go into `~/.ssh/authorized_keys`, SSH root
+  `https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`, SSH root
   and password logins are turned off, so only keys work. If no key is
   authorised the run warns you: add one before you close your session, or
   you'll only be able to log in at the console. fail2ban bans
@@ -69,7 +77,7 @@ SSH key. On the first run it asks for your git name and email (unless you pass
 them), then signs you in to GitHub with `gh`. It's safe to re-run.
 
 ```powershell
-git clone https://github.com/philng/machine-setup.git
+git clone https://github.com/<you>/machine-setup.git
 cd machine-setup
 powershell -ExecutionPolicy Bypass -File windows\bootstrap.ps1
 # optional: -GitUserName "..." -GitUserEmail "..." -WithWsl

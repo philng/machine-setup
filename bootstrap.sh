@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fresh-machine setup for Fedora, Debian/Ubuntu or macOS.
 #   ./bootstrap.sh                 # from a checkout of this repo
-#   bash <(curl -fsSL <raw URL>)   # only works while the repo is public
+#   REPO_URL=https://github.com/<you>/machine-setup.git bash <(curl -fsSL <raw URL of this file>)
 #   ./bootstrap.sh --profile server [--gui | --headless]   # Fedora Server
 # Extra args go to ansible-playbook, e.g.  ./bootstrap.sh --tags packages
 set -euo pipefail
@@ -24,7 +24,7 @@ case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or serv
 ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} "${ARGS[@]}")
 set -- "${ARGS[@]}"
 
-REPO_URL="${REPO_URL:-https://github.com/philng/machine-setup.git}"
+REPO_URL="${REPO_URL:-}"   # only needed when not run from a checkout
 DEST="${DEST:-$HOME/machine-setup}"
 
 if [ "$(id -u)" -eq 0 ]; then
@@ -62,6 +62,10 @@ elif [ -d "$DEST/.git" ]; then
   echo "==> Updating $DEST"
   git -C "$DEST" pull --ff-only
 else
+  if [ -z "$REPO_URL" ]; then
+    echo "Run this from a clone of the repo, or set REPO_URL=https://github.com/<you>/machine-setup.git" >&2
+    exit 1
+  fi
   echo "==> Cloning into $DEST"
   git clone "$REPO_URL" "$DEST"
 fi
@@ -78,18 +82,35 @@ ask() { local reply; read -rp "$1" reply </dev/tty; printf '%s' "$reply"; }
 yaml_str() { printf "'%s'" "${1//\'/\'\'}"; }
 
 # --- First run: personal settings -------------------------------------------
-# Kept in vars/local.yml (not committed), which overrides vars/apps.yml.
+# Kept in vars/local.yml (not committed), which overrides vars/apps.yml and
+# vars/server.yml. Edit it to change these, or to override anything else.
 LOCAL_VARS="$DEST/vars/local.yml"
-if [ "$PROFILE" = desktop ] && [ ! -f "$LOCAL_VARS" ] && have_tty \
-   && ! grep -Eq "^git_user_name: *[\"']?[^\"' ]" vars/apps.yml \
-   && [ -z "$(git config --global user.name 2>/dev/null || true)" ]; then
-  echo "==> First run: a couple of personal settings (saved in vars/local.yml)"
-  git_name="$(ask "    Name for git commits (Enter to skip): ")"
-  git_email="$(ask "    Email for git commits (Enter to skip): ")"
+if [ ! -f "$LOCAL_VARS" ] && have_tty; then
+  echo "==> First run: a few personal settings (saved in vars/local.yml)"
+  # Guess the GitHub user from gh, or from the owner of this checkout's remote.
+  gh_guess="$(gh api user -q .login 2>/dev/null || true)"
+  if [ -z "$gh_guess" ]; then
+    gh_guess="$(git remote get-url origin 2>/dev/null | sed -nE 's#.*github\.com[:/]([^/]+)/.*#\1#p')"
+  fi
+  if [ "$PROFILE" = server ]; then
+    why="its public SSH keys will be allowed to log in"
+  else
+    why="used for your dotfiles repo"
+  fi
+  github_user="$(ask "    GitHub username ($why)${gh_guess:+ [$gh_guess]}: ")"
+  github_user="${github_user:-$gh_guess}"
+  git_name="" git_email=""
+  if [ "$PROFILE" = desktop ] && [ -z "$(git config --global user.name 2>/dev/null || true)" ]; then
+    git_name="$(ask "    Name for git commits (Enter to skip): ")"
+    git_email="$(ask "    Email for git commits (Enter to skip): ")"
+  fi
   {
-    echo "# Personal settings for this machine (not committed). Overrides vars/apps.yml."
-    echo "git_user_name: $(yaml_str "$git_name")"
-    echo "git_user_email: $(yaml_str "$git_email")"
+    echo "# Personal settings for this machine (not committed)."
+    echo "# Anything from vars/apps.yml or vars/server.yml can be overridden here too."
+    echo "github_user: $(yaml_str "$github_user")"
+    [ -n "$git_name" ] && echo "git_user_name: $(yaml_str "$git_name")"
+    [ -n "$git_email" ] && echo "git_user_email: $(yaml_str "$git_email")"
+    true
   } > "$LOCAL_VARS"
 fi
 

@@ -82,7 +82,8 @@ user_groups:
   - docker
 
 # Hardening (roles/server).
-server_ssh_keys_url: https://github.com/philng.keys
+# Public keys allowed to log in (empty if github_user isn't set).
+server_ssh_keys_url: "{{ 'https://github.com/' + github_user + '.keys' if github_user | default('') | length > 0 else '' }}"
 server_firewall_services:
   - ssh
   - dhcpv6-client          # keeps IPv6 addressing working

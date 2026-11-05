@@ -48,7 +48,7 @@
       when: profile == 'server'
       tags: always
 
-    - name: Load personal settings (vars/local.yml, written by bootstrap.sh)
+    - name: Load personal settings (vars/local.yml, written by bootstrap.sh; overrides everything above)
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/vars/local.yml"
       when: lookup('ansible.builtin.fileglob', playbook_dir + '/vars/local.yml') | length > 0

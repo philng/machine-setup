@@ -225,7 +225,12 @@ ghostty_theme: "Catppuccin Mocha"
 # you don't have one.
 vim_enabled: true
 
+# Your GitHub username. bootstrap.sh asks for it on the first run and saves
+# it in vars/local.yml. Used for the dotfiles repo below and, on servers, to
+# fetch the SSH keys allowed to log in (https://github.com/<user>.keys).
+github_user: ""
+
 # Optional dotfiles role (off by default).
 dotfiles_enabled: false
-dotfiles_repo: https://github.com/philng/dotfiles.git
+dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 dotfiles_dest: "~/.dotfiles"
