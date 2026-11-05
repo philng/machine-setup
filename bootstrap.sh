@@ -159,7 +159,16 @@ if [ "$PROFILE" = desktop ] && have_tty && command -v gh >/dev/null 2>&1; then
     run gh auth login --hostname github.com --git-protocol ssh --web || true
   fi
   KEY="$HOME/.ssh/id_ed25519.pub"
-  if gh auth status >/dev/null 2>&1 && [ -f "$KEY" ]; then
+  # GitHub publishes every account's public keys at github.com/<user>.keys,
+  # so check there first: if the key is already on GitHub, nothing to ask.
+  key_on_github() {
+    local user
+    user="$(gh api user --jq .login 2>/dev/null)" || return 1
+    curl -fsSL "https://github.com/$user.keys" 2>/dev/null | grep -qF "$(cut -d' ' -f2 "$KEY")"
+  }
+  if gh auth status >/dev/null 2>&1 && [ -f "$KEY" ] && key_on_github; then
+    echo "==> This machine's SSH key is already on GitHub"
+  elif gh auth status >/dev/null 2>&1 && [ -f "$KEY" ]; then
     key_scope() { gh auth status 2>&1 | grep -qE "'(admin|write):public_key'"; }
     if ! key_scope; then
       echo "==> Allowing gh to add your SSH key for a moment (approve in the browser)"
