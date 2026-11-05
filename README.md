@@ -97,7 +97,7 @@ Before closing the session that ran it, check you can still SSH in with your key
 
 Ansible can't run on Windows, so Windows has its own script,
 [`windows/bootstrap.ps1`](windows/bootstrap.ps1). It installs the same apps with
-winget (Windows Terminal in place of Ghostty), removes preinstalled Store apps
+winget (Windows Terminal in place of Ghostty, RustDesk from its GitHub releases), removes preinstalled Store apps
 (News, Weather, Maps, People, Tips, Clipchamp, Solitaire and so on), turns on dark
 mode, installs Claude Code and mise + uv, sets up git the same way, and creates an
 SSH key. On the first run it asks for your git name and email (unless you pass
@@ -129,7 +129,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   System Settings → Privacy & Security, then re-run.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
 - `rustdesk_enabled` – RustDesk remote desktop from its GitHub releases, with its
-  background service (Linux; a cask on macOS and winget on Windows). Set `rustdesk_version`
+  background service (Linux; a cask on macOS, its .msi on Windows). Set `rustdesk_version`
   or `rustdesk_url` to pin a release.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.

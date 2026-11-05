@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Installs apps with winget, removes preinstalled apps, turns on dark mode,
-  installs Claude Code and mise (+ uv), and can optionally install WSL so the
+  installs RustDesk, Claude Code and mise (+ uv), and can optionally install WSL so the
   Ansible playbook can set up a Linux shell too. Safe to re-run: anything
   already installed or already removed is skipped.
 
@@ -22,7 +22,8 @@
   Optional git user.email.
 
 .PARAMETER CheckOnly
-  Only check that every winget package ID exists; installs nothing.
+  Only check that every winget package ID and the RustDesk download exist;
+  installs nothing.
 #>
 [CmdletBinding()]
 param(
@@ -45,7 +46,6 @@ $WingetPackages = @(
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'Docker.DockerDesktop'
     'RedHat.Podman'
-    'RustDesk.RustDesk'            # remote desktop
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet
@@ -93,6 +93,14 @@ function Test-WingetInstalled([string]$Id) {
 }
 
 # PATH as freshly installed apps left it, so this session can use them.
+# RustDesk isn't on winget, so its installer comes from its GitHub releases.
+function Get-RustDeskMsiUrl {
+    $release = Invoke-RestMethod -Uri https://api.github.com/repos/rustdesk/rustdesk/releases/latest -UseBasicParsing
+    $asset = $release.assets | Where-Object { $_.name -like '*-x86_64.msi' } | Select-Object -First 1
+    if (-not $asset) { throw "No RustDesk .msi in release $($release.tag_name)" }
+    return $asset.browser_download_url
+}
+
 function Get-FreshPath {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -118,6 +126,8 @@ if ($CheckOnly) {
         }
     }
     if ($missing.Count -gt 0) { throw "Unknown winget IDs: $($missing -join ', ')" }
+    Write-Step 'Checking the RustDesk download'
+    Write-Skip "ok      $(Get-RustDeskMsiUrl)"
     return
 }
 
@@ -151,6 +161,21 @@ foreach ($value in 'AppsUseLightTheme', 'SystemUsesLightTheme') {
         Set-ItemProperty -Path $personalize -Name $value -Value 0 -Type DWord
         Write-Host "    set $value = 0"
     } else { Write-Skip "$value already 0" }
+}
+
+# --- RustDesk ----------------------------------------------------------------
+Write-Step 'Installing RustDesk'
+if (Test-Path "$env:ProgramFiles\RustDesk\rustdesk.exe") {
+    Write-Skip 'already installed'
+} else {
+    try {
+        $msi = Join-Path $env:TEMP 'rustdesk.msi'
+        Invoke-WebRequest -Uri (Get-RustDeskMsiUrl) -OutFile $msi -UseBasicParsing
+        # Installing for all users needs admin, so Windows asks once.
+        $proc = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn' -Verb RunAs -Wait -PassThru
+        if ($proc.ExitCode -ne 0) { throw "msiexec exit code $($proc.ExitCode)" }
+        Remove-Item $msi -ErrorAction SilentlyContinue
+    } catch { Write-Warn "couldn't install RustDesk: $_"; $failed += 'RustDesk' }
 }
 
 # --- Claude Code -------------------------------------------------------------
