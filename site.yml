@@ -15,6 +15,12 @@
     use_sudo: "{{ ansible_os_family != 'Darwin' }}"
 
   pre_tasks:
+    - name: Load personal settings (vars/local.yml, written by bootstrap.sh)
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/vars/local.yml"
+      when: lookup('ansible.builtin.fileglob', playbook_dir + '/vars/local.yml') | length > 0
+      tags: always
+
     - name: Show detected OS
       ansible.builtin.debug:
         msg: "{{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_os_family }})"

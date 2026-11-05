@@ -11,7 +11,7 @@ also works on Debian/Ubuntu and macOS. Safe to re-run: a second run changes noth
 
 ## Fresh machine
 
-The repo is private, so clone it first (sign in with `gh auth login`, or use an SSH key), then:
+The repo is public, so a fresh machine needs nothing signed in first:
 
 ```sh
 git clone https://github.com/philng/machine-setup.git ~/machine-setup
@@ -19,8 +19,18 @@ git clone https://github.com/philng/machine-setup.git ~/machine-setup
 ```
 
 `bootstrap.sh` installs git and Ansible (installing Homebrew first on macOS),
-installs the Ansible collections, and runs the playbook. It asks for your sudo
-password once.
+installs the Ansible collections, and runs the playbook. Along the way it:
+
+- asks for your sudo password once;
+- on the first run, asks for your git name and email and saves them in
+  `vars/local.yml` (not committed; it overrides `vars/apps.yml`, so edit or
+  delete it to change them);
+- afterwards, signs you in to GitHub with `gh` and uploads the machine's new SSH
+  key (or just uploads the key if you're already signed in);
+- ends with the few things left to do by hand: log out and back in, sign in to
+  your apps, install IntelliJ from JetBrains Toolbox, and run `claude` once.
+
+Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped.
 
 ## Windows
 
@@ -29,7 +39,8 @@ Ansible can't run on Windows, so Windows has its own script,
 winget (Windows Terminal in place of Ghostty), removes preinstalled Store apps
 (News, Weather, Maps, People, Tips, Clipchamp, Solitaire and so on), turns on dark
 mode, installs Claude Code and mise + uv, sets up git the same way, and creates an
-SSH key. It's safe to re-run.
+SSH key. On the first run it asks for your git name and email (unless you pass
+them), then signs you in to GitHub with `gh`. It's safe to re-run.
 
 ```powershell
 git clone https://github.com/philng/machine-setup.git

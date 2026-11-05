@@ -1,3 +1,4 @@
 collections/
 *.retry
 .ansible/
+vars/local.yml
