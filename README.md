@@ -32,6 +32,31 @@ installs the Ansible collections, and runs the playbook. Along the way it:
 
 Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped.
 
+## Fedora Server
+
+```sh
+~/machine-setup/bootstrap.sh --profile server            # GUI auto-detected
+~/machine-setup/bootstrap.sh --profile server --headless # or --gui to force it
+```
+
+The server profile ([`vars/server.yml`](vars/server.yml)) is a leaner variant
+without the personal bits (no Spotify/VLC, no git name/email prompt, no GitHub
+sign-in):
+
+- **Every server:** git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,
+  zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
+  and full automatic updates that reboot when an update needs it.
+- **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
+  NoMachine, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
+- **Hardening** ([`roles/server`](roles/server)): your public keys from
+  `https://github.com/philng.keys` go into `~/.ssh/authorized_keys`, SSH root
+  login is turned off, and password login is turned off *only if* at least one
+  key is authorised (otherwise it stays on and the run warns you). fail2ban bans
+  repeated failed SSH logins, and firewalld leaves only SSH (plus NoMachine's
+  port on a GUI server) open.
+
+Before closing the session that ran it, check you can still SSH in with your key.
+
 ## Windows
 
 Ansible can't run on Windows, so Windows has its own script,

@@ -8,6 +8,7 @@
 #   tests/vm-test.sh --quick         # skip pre-installing Firefox/Chromium/LibreOffice
 #   tests/vm-test.sh --skip-nomachine  # leave NoMachine out (CI: nomachine.com
 #                                      # refuses downloads from GitHub's servers)
+#   tests/vm-test.sh --profile server  # headless Fedora Server profile
 #
 # What it does:
 #   1. Downloads the Fedora Cloud image once (cached in ~/.cache/machine-setup-vm)
@@ -27,6 +28,7 @@ set -euo pipefail
 RELEASE=43
 KEEP=0
 QUICK=0
+PROFILE=desktop
 SSH_PORT="${SSH_PORT:-2222}"
 MEM_MB="${MEM_MB:-4096}"
 CPUS="${CPUS:-2}"
@@ -38,10 +40,14 @@ while [ $# -gt 0 ]; do
     --keep) KEEP=1; shift ;;
     --quick) QUICK=1; shift ;;
     --skip-nomachine) SKIP_NOMACHINE=1; shift ;;
+    --profile) PROFILE="$2"; shift 2 ;;
     -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
+
+case "$PROFILE" in desktop) ;; server) QUICK=1 ;; *) echo "--profile must be desktop or server" >&2; exit 2 ;; esac
+# (Nothing is removed on a headless server, so it skips the pre-installs.)
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/machine-setup-vm"
@@ -177,9 +183,18 @@ failed_role() {
   grep -B30 '^fatal:' "$1" | sed -n 's/^TASK \[\([a-z_]*\) : .*/\1/p' | tail -1
 }
 
-log "Run 1: ./bootstrap.sh"
+# The cloud image has no desktop, so the server profile runs headless.
+if [ "$PROFILE" = server ]; then
+  BOOT_ARGS="--profile server --headless"
+  PB_ARGS="-e profile=server -e machine_gui=false"
+else
+  BOOT_ARGS=""
+  PB_ARGS=""
+fi
+
+log "Run 1: ./bootstrap.sh $BOOT_ARGS"
 SKIP_TAGS="${SKIP_NOMACHINE:+nomachine}"
-if vm "cd ~/machine-setup && ./bootstrap.sh ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
+if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run1.log"; then
   pass "bootstrap.sh completed"
 else
   fail "bootstrap.sh completed"
@@ -192,14 +207,14 @@ else
     SKIP_TAGS="${SKIP_TAGS:+$SKIP_TAGS,}$(role_tag "$role")"
     logf="$WORK/run1-retry$attempt.log"
     log "Run 1 again without: $SKIP_TAGS"
-    if vm "cd ~/machine-setup && ansible-playbook site.yml --skip-tags $SKIP_TAGS" 2>&1 | tee "$logf"; then
+    if vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS --skip-tags $SKIP_TAGS" 2>&1 | tee "$logf"; then
       break
     fi
   done
 fi
 
 log "Run 2: the playbook again (should change nothing)"
-vm "cd ~/machine-setup && ansible-playbook site.yml ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run2.log" || true
+vm "cd ~/machine-setup && ansible-playbook site.yml $PB_ARGS ${SKIP_TAGS:+--skip-tags $SKIP_TAGS}" 2>&1 | tee "$WORK/run2.log" || true
 if grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$WORK/run2.log"; then
   pass "second run reports changed=0 failed=0"
 else
@@ -207,43 +222,55 @@ else
 fi
 
 # A new ssh session so the new docker group membership applies.
-log "Checking the result"
-check "Chrome Flatpak installed"        'flatpak info com.google.Chrome'
-check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
-check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
-check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
-check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
-check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
+log "Checking the result ($PROFILE profile)"
+# Every profile.
 check "podman runs a container"         'podman run --rm quay.io/podman/hello'
 check "docker service is running"       'systemctl is-active --quiet docker'
 check "user is in the docker group"     'id -nG | grep -qw docker'
 check "docker runs a container (no sudo)" 'docker run --rm hello-world'
-check "VLC Flatpak installed"           'flatpak info org.videolan.VLC'
-check "VS Code installed"                'rpm -q code'
-check "Ghostty installed"                'rpm -q ghostty'
-check "Ghostty theme exists"             'grep -qx "theme = Catppuccin Mocha" .config/ghostty/config && ghostty +list-themes --plain 2>/dev/null | grep -q "^Catppuccin Mocha"'
-check "JetBrains Toolbox installed"      'test -x ~/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox'
 check "zsh is the login shell"           'getent passwd tester | grep -q "/zsh$"'
 check "antidote loads in zsh"            'zsh -ic "type antidote"'
 check "Claude Code installed"            'test -x .local/bin/claude && .local/bin/claude --version'
 check "vim and vim-plug installed"       'vim --version >/dev/null && test -f .vim/autoload/plug.vim'
 check "vim plugins installed"            'test -d .vim/plugged/vim-sensible'
 check "gh installed"                     'gh --version'
-check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
 check "mise and uv installed"            '.local/bin/mise --version && .local/bin/mise exec -- uv --version'
 check "fzf, bat, btop and eza installed"  'command -v fzf && command -v bat && command -v btop && command -v eza'
 check "dnf-automatic timer enabled"     'systemctl list-unit-files --state=enabled "dnf*-automatic.timer" | grep -q automatic'
-check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
 check "full ffmpeg from RPM Fusion"     'rpm -q ffmpeg && rpm -q --whatprovides gstreamer1-libav'
 check "git uses delta"                  '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "SSH key created"                 'test -f .ssh/id_ed25519.pub'
-if [ -z "${SKIP_NOMACHINE:-}" ]; then
-  check "NoMachine installed"             'rpm -q nomachine'
-  check "NoMachine server running"        'systemctl is-active --quiet nxserver'
+
+if [ "$PROFILE" = server ]; then
+  check "tmux installed"                  'command -v tmux'
+  check "no desktop apps (Flatpaks, VS Code, fonts)" '! flatpak list 2>/dev/null | grep -q . && ! rpm -q code && ! fc-list 2>/dev/null | grep -qi "Nerd Font"'
+  check "SSH: root login off"             'sudo sshd -T | grep -qx "permitrootlogin no"'
+  check "SSH: password login off"         'sudo sshd -T | grep -qx "passwordauthentication no"'
+  check "firewall only allows SSH"        '[ "$(sudo firewall-cmd --list-services | tr " " "\n" | sort | xargs)" = "dhcpv6-client ssh" ]'
+  check "fail2ban guards SSH"             'sudo fail2ban-client status sshd'
+  check "all updates, reboot when needed" 'grep -qx "upgrade_type *= *default" /etc/dnf/automatic.conf && grep -qx "reboot *= *when-needed" /etc/dnf/automatic.conf'
+else
+  check "Chrome Flatpak installed"        'flatpak info com.google.Chrome'
+  check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
+  check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
+  check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
+  check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ]'
+  check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'
+  check "VLC Flatpak installed"           'flatpak info org.videolan.VLC'
+  check "VS Code installed"                'rpm -q code'
+  check "Ghostty installed"                'rpm -q ghostty'
+  check "Ghostty theme exists"             'grep -qx "theme = Catppuccin Mocha" .config/ghostty/config && ghostty +list-themes --plain 2>/dev/null | grep -q "^Catppuccin Mocha"'
+  check "JetBrains Toolbox installed"      'test -x ~/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox'
+  check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
+  check "Flatpak update timer enabled"    'systemctl is-enabled --quiet flatpak-update.timer'
+  if [ -z "${SKIP_NOMACHINE:-}" ]; then
+    check "NoMachine installed"             'rpm -q nomachine'
+    check "NoMachine server running"        'systemctl is-active --quiet nxserver'
+  fi
 fi
 
 # ------------------------------------------------------------ summary
-log "Summary (Fedora $RELEASE)"
+log "Summary (Fedora $RELEASE, $PROFILE profile)"
 printf '%s\n' "${RESULTS[@]}"
 if printf '%s\n' "${RESULTS[@]}" | grep -q '^FAIL'; then
   if [ "$KEEP" = 0 ]; then

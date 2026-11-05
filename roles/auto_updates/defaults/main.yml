@@ -3,3 +3,5 @@ auto_updates_enabled: false
 # Fedora: "security" applies only security fixes; "default" applies everything.
 auto_updates_type: security
 flatpak_auto_update: true
+# Fedora: "never", "when-needed" (kernel/core updates) or "when-changed".
+auto_updates_reboot: never

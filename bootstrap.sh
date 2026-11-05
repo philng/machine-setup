@@ -2,8 +2,27 @@
 # Fresh-machine setup for Fedora, Debian/Ubuntu or macOS.
 #   ./bootstrap.sh                 # from a checkout of this repo
 #   bash <(curl -fsSL <raw URL>)   # only works while the repo is public
+#   ./bootstrap.sh --profile server [--gui | --headless]   # Fedora Server
 # Extra args go to ansible-playbook, e.g.  ./bootstrap.sh --tags packages
 set -euo pipefail
+
+# Our own options; everything else is passed through to ansible-playbook.
+PROFILE=desktop
+GUI=""
+ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --profile) PROFILE="${2:?--profile needs desktop or server}"; shift 2 ;;
+    --profile=*) PROFILE="${1#*=}"; shift ;;
+    --server) PROFILE=server; shift ;;
+    --gui) GUI=true; shift ;;
+    --headless) GUI=false; shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or server" >&2; exit 2 ;; esac
+ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} "${ARGS[@]}")
+set -- "${ARGS[@]}"
 
 REPO_URL="${REPO_URL:-https://github.com/philng/machine-setup.git}"
 DEST="${DEST:-$HOME/machine-setup}"
@@ -61,7 +80,7 @@ yaml_str() { printf "'%s'" "${1//\'/\'\'}"; }
 # --- First run: personal settings -------------------------------------------
 # Kept in vars/local.yml (not committed), which overrides vars/apps.yml.
 LOCAL_VARS="$DEST/vars/local.yml"
-if [ ! -f "$LOCAL_VARS" ] && have_tty \
+if [ "$PROFILE" = desktop ] && [ ! -f "$LOCAL_VARS" ] && have_tty \
    && ! grep -Eq "^git_user_name: *[\"']?[^\"' ]" vars/apps.yml \
    && [ -z "$(git config --global user.name 2>/dev/null || true)" ]; then
   echo "==> First run: a couple of personal settings (saved in vars/local.yml)"
@@ -96,7 +115,7 @@ fi
 # --- After the playbook ---------------------------------------------------------
 # Sign in to GitHub and add this machine's SSH key, so cloning and pushing
 # work straight away. gh offers to upload ~/.ssh/id_ed25519.pub during login.
-if have_tty && command -v gh >/dev/null 2>&1; then
+if [ "$PROFILE" = desktop ] && have_tty && command -v gh >/dev/null 2>&1; then
   if ! gh auth status >/dev/null 2>&1; then
     echo "==> Signing in to GitHub (choose SSH, and say yes to uploading your key)"
     run gh auth login --hostname github.com --git-protocol ssh --web || true
@@ -108,7 +127,19 @@ if have_tty && command -v gh >/dev/null 2>&1; then
   fi
 fi
 
-cat <<'DONE'
+if [ "$PROFILE" = server ]; then
+  cat <<'DONE'
+
+==> Done. What's left to do by hand:
+  - Log out and back in (zsh becomes your shell; docker works without sudo).
+  - Check you can still SSH in from your laptop with your key before closing
+    this session (password logins are off if the playbook found your keys).
+  - Run `claude` once to sign in to Claude Code.
+  - GUI server: connect with NoMachine (port 4000), open JetBrains Toolbox and
+    click Install next to IntelliJ IDEA.
+DONE
+else
+  cat <<'DONE'
 
 ==> Done. What's left to do by hand:
   - Log out and back in (zsh becomes your shell; on Linux, docker works without sudo).
@@ -118,3 +149,4 @@ cat <<'DONE'
   - Run `claude` once in a terminal to sign in to Claude Code.
   - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
 DONE
+fi

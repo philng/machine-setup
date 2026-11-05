@@ -1,4 +1,6 @@
 ---
+# Desktop profile (the default). The server profile overrides parts of this
+# from vars/server.yml (./bootstrap.sh --profile server).
 # The one file you normally edit.
 #
 # Linux (Fedora, Debian/Ubuntu): CLI tools come from dnf/apt, GUI apps from Flathub.

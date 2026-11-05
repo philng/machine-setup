@@ -1,0 +1,88 @@
+# Server profile (Fedora Server). Loaded over vars/apps.yml by
+#   ./bootstrap.sh --profile server [--gui | --headless]
+# Lists here replace the desktop ones. Anything not set here (zsh, vim, mise,
+# Claude Code, codecs, dotfiles, ...) comes from vars/apps.yml unchanged.
+# machine_gui is true for a server with a desktop (auto-detected, or --gui).
+
+extra_repos: "{{ server_repos + (server_gui_repos if machine_gui | bool else []) }}"
+server_repos:
+  - docker
+  - rpmfusion              # codecs
+server_gui_repos:
+  - vscode
+  - ghostty
+
+packages: "{{ server_packages + (server_gui_packages if machine_gui | bool else []) }}"
+server_packages:
+  - git
+  - zsh
+  - vim
+  - gh
+  - tmux
+  - curl
+  - fzf
+  - bat
+  - btop
+  - eza
+  - git-delta
+  - pciutils
+  - podman
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+  - firewalld
+  - fail2ban
+server_gui_packages:
+  - fontconfig
+  - python3-psutil
+  - gnome-shell-extension-appindicator
+  - code
+  - ghostty
+
+# Headless: nothing to remove. GUI: the same clean-up as the desktop
+# (only packages that are actually installed get removed).
+packages_remove: "{{ server_gui_packages_remove if machine_gui | bool else [] }}"
+server_gui_packages_remove:
+  - "firefox*"
+  - "chromium*"
+  - "libreoffice*"
+  - gnome-tour
+  - gnome-weather
+  - gnome-maps
+  - gnome-contacts
+  - gnome-characters
+  - yelp
+  - "rhythmbox*"
+  - totem
+  - showtime
+  - cheese
+  - snapshot
+  - gnome-connections
+  - simple-scan
+
+# Flatpaks (GUI only; the flatpak role is skipped on a headless server).
+flatpaks:
+  - com.google.Chrome
+flatpaks_remove:
+  - org.mozilla.firefox
+
+# GUI-only extras (their roles are skipped on a headless server).
+nomachine_enabled: true
+jetbrains_toolbox_enabled: true
+
+# All updates, not just security fixes, and reboot when an update needs it.
+auto_updates_type: default
+auto_updates_reboot: when-needed
+
+services_enabled:
+  - docker
+user_groups:
+  - docker
+
+# Hardening (roles/server).
+server_ssh_keys_url: https://github.com/philng.keys
+server_firewall_services:
+  - ssh
+  - dhcpv6-client          # keeps IPv6 addressing working

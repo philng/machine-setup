@@ -18,6 +18,7 @@
       loop:
         - { option: upgrade_type, value: "{{ auto_updates_type }}" }
         - { option: apply_updates, value: "yes" }
+        - { option: reboot, value: "{{ auto_updates_reboot }}" }
 
     - name: Find the dnf-automatic timer
       ansible.builtin.shell: >-
@@ -45,6 +46,7 @@
   when:
     - ansible_os_family != 'Darwin'
     - flatpak_auto_update | bool
+    - machine_gui | default(true) | bool   # no Flatpaks on a headless server
   block:
     - name: Flatpak update service
       ansible.builtin.copy:
