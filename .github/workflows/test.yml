@@ -3,6 +3,9 @@ name: Test
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   workflow_dispatch:
     inputs:
       dotfiles_version:
@@ -104,3 +107,23 @@ jobs:
           name: vm-test-logs-${{ matrix.profile }}
           path: ~/.cache/machine-setup-vm/logs/
           if-no-files-found: ignore
+
+  # Merges a pull request once every test above passes. Skipped for drafts,
+  # for PRs labelled "no-automerge", and for PRs from forks.
+  automerge:
+    needs: [lint, macos, windows, fedora-vm]
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && !github.event.pull_request.draft
+      && !contains(github.event.pull_request.labels.*.name, 'no-automerge')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge the pull request
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --merge --delete-branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}

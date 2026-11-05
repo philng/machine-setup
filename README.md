@@ -236,8 +236,8 @@ on your Mac: it installs and removes apps for real.
 
 ### In CI
 
-GitHub Actions (`.github/workflows/test.yml`) runs on every push to `main`, on
-the 1st of every month (to catch upstream breakage), and by hand from the
+GitHub Actions (`.github/workflows/test.yml`) runs on every pull request and
+push to `main`, on the 1st of every month (to catch upstream breakage), and by hand from the
 Actions tab for any branch (optionally with a dotfiles branch to test). After
 `ansible-lint` and `shellcheck` it runs, in parallel:
 
@@ -249,3 +249,6 @@ Actions tab for any branch (optionally with a dotfiles branch to test). After
 Each Fedora and Mac test does a setup run, a second run that must change
 nothing, and a `--dry-run` that must report no changes. If a Fedora job fails,
 its logs are attached to the run.
+
+A pull request merges itself once every job passes. To hold one back, open it
+as a draft or add the `no-automerge` label.
