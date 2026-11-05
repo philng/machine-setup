@@ -2,9 +2,7 @@
 # Public keys allowed to log in as you (GitHub publishes yours at
 # https://github.com/<user>.keys). Leave empty to skip.
 server_ssh_keys_url: ""
-# Password SSH logins are turned off only if you have at least one key in
-# ~/.ssh/authorized_keys afterwards, so you can't be locked out.
-server_ssh_disable_passwords: true
+# Password and root SSH logins are always turned off; only keys work.
 # firewalld services left open in the default zone; everything else is closed.
 server_firewall_services:
   - ssh

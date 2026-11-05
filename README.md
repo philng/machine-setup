@@ -50,8 +50,9 @@ sign-in):
   NoMachine, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
 - **Hardening** ([`roles/server`](roles/server)): your public keys from
   `https://github.com/philng.keys` go into `~/.ssh/authorized_keys`, SSH root
-  login is turned off, and password login is turned off *only if* at least one
-  key is authorised (otherwise it stays on and the run warns you). fail2ban bans
+  and password logins are turned off, so only keys work. If no key is
+  authorised the run warns you: add one before you close your session, or
+  you'll only be able to log in at the console. fail2ban bans
   repeated failed SSH logins, and firewalld leaves only SSH (plus NoMachine's
   port on a GUI server) open.
 

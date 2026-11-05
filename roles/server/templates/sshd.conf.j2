@@ -1,7 +1,5 @@
 # Managed by machine-setup (roles/server). Loaded before the distro's own
 # drop-ins, so these settings win.
 PermitRootLogin no
-{% if server_ssh_passwords_off %}
 PasswordAuthentication no
 KbdInteractiveAuthentication no
-{% endif %}

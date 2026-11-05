@@ -44,16 +44,13 @@
   register: server_key_count
   changed_when: false
 
-- name: Decide whether password logins can be turned off
-  ansible.builtin.set_fact:
-    server_ssh_passwords_off: "{{ server_ssh_disable_passwords | bool and (server_key_count.stdout | int) > 0 }}"
-
-- name: Warn that password logins stay on
+- name: Warn when no SSH key is authorised
   ansible.builtin.debug:
     msg:
-      - "No SSH keys in ~{{ target_user }}/.ssh/authorized_keys, so password logins were left ON."
-      - "Add a key (ssh-copy-id from your laptop, or upload one to GitHub) and re-run."
-  when: server_ssh_disable_passwords | bool and not server_ssh_passwords_off
+      - "WARNING: no SSH keys in ~{{ target_user }}/.ssh/authorized_keys, and password logins are now OFF."
+      - "Keep this session open and add a key (upload one to GitHub and re-run, or paste it into"
+      - "~/.ssh/authorized_keys), or you'll only be able to log in at the console."
+  when: (server_key_count.stdout | int) == 0
 
 - name: Configure sshd
   ansible.builtin.template:
