@@ -84,6 +84,12 @@
       when:
         - ansible_os_family != 'Darwin'
         - machine_gui | bool
+    - role: tailscale     # Tailscale VPN from its official repo (Linux)
+      become: "{{ use_sudo }}"
+      tags: tailscale
+      when:
+        - ansible_os_family != 'Darwin'
+        - tailscale_enabled | bool
     - role: remote_desktop   # GNOME Remote Login over RDP (Fedora)
       become: "{{ use_sudo }}"
       tags: remote_desktop

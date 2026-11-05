@@ -78,7 +78,7 @@ The server profile ([`vars/server.yml`](vars/server.yml)) is a leaner variant
 without the personal bits (no Spotify/VLC/Steam, no git name/email prompt, no GitHub
 sign-in):
 
-- **Every server:** git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,
+- **Every server:** Tailscale, git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,
   zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
   and full automatic updates that reboot when an update needs it.
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
@@ -128,6 +128,9 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   If macOS says "Operation not permitted", give your terminal App Management access in
   System Settings → Privacy & Security, then re-run.
 - `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
+- `tailscale_enabled` – Tailscale from its official repo with `tailscaled` running (Linux; the
+  `tailscale-app` cask on macOS, winget on Windows). Sign in with `sudo tailscale up`, or set
+  `tailscale_authkey` (and optionally `tailscale_up_args`, e.g. `["--ssh"]`) in `vars/local.yml`.
 - `remote_desktop_enabled` – GNOME Remote Login on Fedora: RDP into the login screen with
   nobody logged in, port 3389 opened. On for a GUI server; set the RDP user name and password once
   with `sudo grdctl --system rdp set-credentials <user> <password>`.
@@ -167,7 +170,7 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `remote_desktop`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
+Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `tailscale`, `remote_desktop`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
 
 ## Layout
 
@@ -181,6 +184,7 @@ roles/snapshots       snapper snapshots around dnf transactions (Fedora)
 roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
+roles/tailscale       Tailscale from its official repo (Linux)
 roles/remote_desktop  GNOME Remote Login over RDP (Fedora)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/multimedia      codecs + GPU drivers (Fedora)

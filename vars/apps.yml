@@ -111,6 +111,7 @@ flatpaks_remove:
 # Homebrew casks (names from formulae.brew.sh/cask).
 casks:
   - google-chrome
+  - tailscale-app
   - spotify
   - docker-desktop
   - vlc
@@ -141,6 +142,12 @@ mac_apps_remove:
 
 # Extra Homebrew taps, e.g. "homebrew/cask-fonts".
 homebrew_taps: []
+
+# ------------------------------------------------------ Tailscale (Linux)
+# From Tailscale's own repo, with tailscaled running. Sign in once with
+# `sudo tailscale up`, or put tailscale_authkey in vars/local.yml.
+# (On macOS it's the tailscale-app cask above.)
+tailscale_enabled: true
 
 # ------------------------------------------------- Remote desktop (Fedora)
 # GNOME Remote Login: RDP into the login screen with nobody logged in, and

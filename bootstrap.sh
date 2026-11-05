@@ -171,6 +171,8 @@ if [ "$PROFILE" = server ]; then
   - Check you can still SSH in from your laptop with your key before closing
     this session: password logins are now off, so only keys work.
   - Run `claude` once to sign in to Claude Code.
+  - Run `sudo tailscale up` and open the link it prints to add this machine to
+    your tailnet (skip if you set tailscale_authkey).
   - GUI server: choose a remote desktop user name and password with
       sudo grdctl --system rdp set-credentials <user> <password>
     then connect with any RDP client to this machine's address (port 3389).
@@ -185,6 +187,7 @@ else
     (on Linux: Settings > Online Accounts > Google).
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
   - Run `claude` once in a terminal to sign in to Claude Code.
+  - Sign in to Tailscale: `sudo tailscale up` on Linux, or open the Tailscale app.
   - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
 DONE
 fi
