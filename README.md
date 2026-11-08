@@ -85,7 +85,7 @@ sign-in):
   zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
   and full automatic updates that reboot when an update needs it.
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
-  GNOME Remote Login over RDP, Chrome (Firefox removed), and the GNOME clean-up and dark mode.
+  GNOME Remote Login over RDP, Chrome and Firefox (Fedora's package), and the GNOME clean-up and dark mode.
 - **Hardening** ([`roles/server`](roles/server)): your public keys from
   `https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`, SSH root
   and password logins are turned off, so only keys work. If no key is
