@@ -39,11 +39,13 @@ RUN set -eux; \
 
 COPY bootc/nvidia.sh /tmp/nvidia.sh
 COPY bootc/nvidia/ /tmp/nvidia-files/
+RUN set -eux; \
+    if [ "$NVIDIA" = true ]; then cp -a /tmp/nvidia-files/. /; sh /tmp/nvidia.sh install; fi
+# The signing key is only mounted for this step (compiling and signing).
 RUN --mount=type=secret,id=akmods_key --mount=type=secret,id=akmods_cert \
     set -eux; \
     if [ "$NVIDIA" = true ]; then \
-      cp -a /tmp/nvidia-files/. /; \
-      sh /tmp/nvidia.sh; \
+      sh /tmp/nvidia.sh build; \
       dnf clean all; \
       rm -rf /var/cache/* /var/lib/dnf /var/log/*; \
     fi; \
