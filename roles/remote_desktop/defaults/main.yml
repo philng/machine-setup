@@ -1,7 +1,8 @@
 ---
 remote_desktop_enabled: false
-remote_desktop_port: 3389
-# Who may connect over RDP. By default only Tailscale, never the LAN or the
+remote_desktop_port: 3389       # RDP (GNOME)
+remote_desktop_vnc_port: 5900   # VNC (Sway)
+# Who may connect (RDP or VNC). By default only Tailscale, never the LAN or the
 # public internet. To also allow your LAN, add its range in vars/local.yml:
 #   remote_desktop_allowed_sources: [100.64.0.0/10, "fd7a:115c:a1e0::/48", 192.168.0.0/16]
 remote_desktop_allowed_sources:

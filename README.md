@@ -67,7 +67,7 @@ sudo snapper -c root undochange 42..43       # put files back as they were at 42
 are layered with `rpm-ostree` instead of installed with dnf, and applied live, so
 they work straight away. What's different:
 
-- **Removing preinstalled apps** (Firefox and the rest of `packages_remove`) uses
+- **Removing preinstalled apps** (`packages_remove`, such as LibreOffice) uses
   `rpm-ostree override remove` and takes effect after a restart. The run ends
   with a reminder to restart.
 - **If an update is already waiting for a restart**, new packages can't be
@@ -82,7 +82,8 @@ they work straight away. What's different:
   Flatpaks with their own codecs. Intel and NVIDIA drivers are layered from RPM
   Fusion; AMD hardware decoding is a printed command to run by hand.
 - **Sway and other non-GNOME desktops** skip the GNOME parts: settings, tray
-  icon extension, Google Drive in Files, and GNOME Remote Login.
+  icon extension and Google Drive in Files. Remote desktop on Sway is wayvnc
+  (VNC) instead of GNOME Remote Login (RDP).
 - The server profile is for Fedora Server only.
 
 To undo a layered package: `sudo rpm-ostree uninstall <name>`. To put back a
@@ -168,6 +169,10 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   for your tailnet ([DNS settings](https://login.tailscale.com/admin/dns)), RDP uses a trusted
   certificate for `<name>.<tailnet>.ts.net` (renewed weekly) so clients don't warn; otherwise a
   self-signed one.
+  On **Sway** it's wayvnc instead: VNC into your running session (log in on the machine
+  first), port 5900, Tailscale only. Connect with TigerVNC Viewer (the `tigervnc-viewer` cask,
+  winget `TigerVNC.TigerVNC`) and log in with your Linux user name and password; the
+  connection is encrypted.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
@@ -219,7 +224,7 @@ roles/packages        dnf/apt via the generic package module, Homebrew on macOS
 roles/flatpak         Flathub remote + apps (Linux)
 roles/casks           Homebrew casks (macOS)
 roles/tailscale       Tailscale from its official repo (Linux)
-roles/remote_desktop  GNOME Remote Login over RDP (Fedora)
+roles/remote_desktop  GNOME Remote Login over RDP, or wayvnc on Sway (Fedora)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
 roles/multimedia      codecs + GPU drivers (Fedora)
 roles/auto_updates    unattended updates + weekly Flatpak updates
@@ -253,7 +258,7 @@ sudo dnf install -y qemu-kvm qemu-img xorriso openssh-clients curl   # once
 tests/vm-test.sh            # add --keep to poke around afterwards
 ```
 
-It boots a fresh Fedora Cloud VM, pre-installs Firefox, Chromium and LibreOffice,
+It boots a fresh Fedora Cloud VM, pre-installs Firefox (which must be kept), Chromium and LibreOffice,
 copies this working tree in (uncommitted changes included), runs `./bootstrap.sh`,
 runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
 removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.

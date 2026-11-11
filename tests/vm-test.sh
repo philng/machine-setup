@@ -15,7 +15,8 @@
 #   1. Downloads the Fedora Cloud image once (cached in ~/.cache/machine-setup-vm)
 #      and verifies its checksum.
 #   2. Boots a fresh VM from a disposable copy-on-write disk, so every run starts clean.
-#   3. Pre-installs Firefox, Chromium and LibreOffice so the removals are really tested.
+#   3. Pre-installs Chromium and LibreOffice so the removals are really tested (and
+#      Firefox, which must be kept).
 #   4. Copies THIS working tree (including uncommitted changes) into the VM and runs
 #      ./bootstrap.sh, then runs the playbook a second time and expects changed=0.
 #   5. Checks the results (Flatpaks, removals, podman, docker) and prints PASS/FAIL.
@@ -279,7 +280,7 @@ if [ "$PROFILE" = server ]; then
 else
   check "Chrome Flatpak installed"        'flatpak info com.google.Chrome'
   check "Spotify Flatpak installed"       'flatpak info com.spotify.Client'
-  check "Firefox removed"                 '[ -z "$(rpm -qa "firefox*")" ]'
+  check "Firefox kept"                    'rpm -q firefox'
   check "Chromium removed"                '[ -z "$(rpm -qa "chromium*")" ]'
   check "All LibreOffice packages removed" '[ -z "$(rpm -qa "libreoffice*")" ] && ! rpm -q unoconv'
   check "GNOME Tour and Simple Scan removed" '! rpm -q gnome-tour && ! rpm -q simple-scan'

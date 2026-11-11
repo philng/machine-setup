@@ -1,0 +1,128 @@
+---
+# GNOME Remote Login: RDP into this machine's login screen with nobody
+# logged in (GNOME 46+). Connect with any RDP client. The RDP user name and
+# password are separate from your account's and are set once by hand:
+#   sudo grdctl --system rdp set-credentials <user> <password>
+# (or Settings > System > Remote Desktop > Remote Login).
+# RDP is only reachable over Tailscale (see remote_desktop_allowed_sources).
+- name: Install GNOME Remote Desktop
+  ansible.builtin.dnf:
+    name: [gnome-remote-desktop, openssl]
+    state: present
+  when: not ostree_booted | default(false)   # part of Silverblue
+
+- name: Create the certificate folder
+  ansible.builtin.file:
+    path: "{{ remote_desktop_tls_dir }}"
+    state: directory
+    owner: gnome-remote-desktop
+    group: gnome-remote-desktop
+    mode: "0700"
+
+- name: Create a self-signed TLS certificate for RDP
+  ansible.builtin.command:
+    cmd: >-
+      openssl req -x509 -newkey rsa:4096 -nodes -sha256 -days 3650
+      -subj /CN={{ ansible_facts.hostname }}
+      -keyout {{ remote_desktop_tls_dir }}/rdp-tls.key
+      -out {{ remote_desktop_tls_dir }}/rdp-tls.crt
+    creates: "{{ remote_desktop_tls_dir }}/rdp-tls.crt"
+
+- name: Let the remote desktop service read the certificate
+  ansible.builtin.file:
+    path: "{{ remote_desktop_tls_dir }}/{{ item }}"
+    owner: gnome-remote-desktop
+    group: gnome-remote-desktop
+    mode: "0600"
+  loop: [rdp-tls.key, rdp-tls.crt]
+  when: not ansible_check_mode
+
+- name: Trusted certificate from Tailscale
+  when: remote_desktop_tailscale_cert | bool
+  block:
+    - name: Install the Tailscale certificate script
+      ansible.builtin.copy:
+        src: rdp-tailscale-cert
+        dest: /usr/local/libexec/rdp-tailscale-cert
+        mode: "0755"
+
+    - name: Renew the Tailscale certificate weekly
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0644"
+      loop:
+        - name: rdp-tailscale-cert.service
+          content: |
+            [Unit]
+            Description=Renew the Tailscale TLS certificate for GNOME Remote Desktop
+            After=tailscaled.service
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/libexec/rdp-tailscale-cert {{ remote_desktop_tls_dir }}
+            SuccessExitStatus=3
+        - name: rdp-tailscale-cert.timer
+          content: |
+            [Unit]
+            Description=Renew the Tailscale TLS certificate for GNOME Remote Desktop weekly
+            [Timer]
+            OnCalendar=weekly
+            RandomizedDelaySec=6h
+            Persistent=true
+            [Install]
+            WantedBy=timers.target
+
+    - name: Enable the renewal timer
+      ansible.builtin.systemd_service:
+        name: rdp-tailscale-cert.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # Exit code 3: no certificate available (Tailscale not signed in yet, or
+    # HTTPS certificates are off for the tailnet); the self-signed one is used.
+    - name: Fetch the Tailscale certificate
+      ansible.builtin.command: /usr/local/libexec/rdp-tailscale-cert {{ remote_desktop_tls_dir }}
+      register: rd_ts_cert
+      changed_when: "'updated' in rd_ts_cert.stdout"
+      failed_when: rd_ts_cert.rc not in [0, 3]
+
+- name: Start the remote desktop service
+  ansible.builtin.systemd_service:
+    name: gnome-remote-desktop
+    enabled: true
+    state: started
+
+- name: Read the Remote Login settings
+  ansible.builtin.command: grdctl --system status
+  register: grd_status
+  changed_when: false
+  failed_when: false
+  check_mode: false   # read-only; also runs in --dry-run
+
+- name: Pick the certificate (Tailscale's if there is one)
+  ansible.builtin.set_fact:
+    rd_cert_base: >-
+      {{ 'ts' if (
+           (rd_ts_cert.rc | default(1)) == 0 if not ansible_check_mode
+           else (remote_desktop_tls_dir + '/ts.crt') in grd_status.stdout | default('')
+         ) else 'rdp-tls' }}
+
+- name: Use the certificate
+  ansible.builtin.command: grdctl --system rdp set-tls-{{ item.kind }} {{ remote_desktop_tls_dir }}/{{ item.file }}
+  loop:
+    - { kind: cert, file: "{{ rd_cert_base }}.crt" }
+    - { kind: key, file: "{{ rd_cert_base }}.key" }
+  when: (remote_desktop_tls_dir + '/' + item.file) not in grd_status.stdout | default('')
+  changed_when: true
+  notify: Restart gnome-remote-desktop
+
+- name: Turn on Remote Login
+  ansible.builtin.command: grdctl --system rdp enable
+  when: grd_status.stdout | default('') is not search('RDP:\s*\n\s*Status:\s*enabled')
+  changed_when: true
+  notify: Restart gnome-remote-desktop
+
+# The service only picks up the settings above when it (re)starts.
+- name: Apply the Remote Login settings
+  ansible.builtin.meta: flush_handlers

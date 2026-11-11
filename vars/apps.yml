@@ -57,10 +57,9 @@ gnome_packages:
 # Only installed ones are touched, so Linux-only names are harmless on macOS.
 # On Fedora Atomic they're removed from the image with rpm-ostree.
 packages_remove:
-  # Use a trailing * to include add-on packages (e.g. firefox-langpacks):
+  # Use a trailing * to include add-on packages (e.g. chromium-common):
   # removal stops with an error rather than silently removing other
-  # packages that depend on one listed here.
-  - "firefox*"             # also firefox-esr on Debian
+  # packages that depend on one listed here. (Firefox is kept.)
   - "chromium*"            # also chromium-browser on Ubuntu
   - "libreoffice*"
   # Preinstalled GNOME/Fedora apps you don't use
@@ -106,7 +105,6 @@ flatpaks:
 
 # Also remove the Flatpak versions, in case they were installed that way.
 flatpaks_remove:
-  - org.mozilla.firefox
   - org.chromium.Chromium
   - org.libreoffice.LibreOffice
 
@@ -115,6 +113,7 @@ flatpaks_remove:
 casks:
   - google-chrome
   - tailscale-app
+  - tigervnc-viewer        # VNC client for wayvnc on a Sway machine
   - spotify
   - docker-desktop
   - vlc
@@ -127,7 +126,6 @@ casks:
   - font-jetbrains-mono-nerd-font
 
 casks_remove:
-  - firefox
   - chromium
   - libreoffice
 
@@ -153,8 +151,10 @@ homebrew_taps: []
 tailscale_enabled: true
 
 # ------------------------------------------------- Remote desktop (Fedora)
-# GNOME Remote Login: RDP into the login screen with nobody logged in, and
-# port 3389 opened. On by default for a GUI server (vars/server.yml).
+# GNOME: Remote Login, RDP into the login screen with nobody logged in (port 3389).
+# Sway: wayvnc, VNC into your running session (port 5900); connect with
+# TigerVNC Viewer and your Linux user name and password.
+# Only reachable over Tailscale. On by default for a GUI server (vars/server.yml).
 remote_desktop_enabled: false
 
 # ----------------------------------------------- JetBrains Toolbox (Linux)

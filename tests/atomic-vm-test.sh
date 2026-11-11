@@ -169,9 +169,10 @@ fail() { RESULTS+=("FAIL  $1"); printf '\033[31mFAIL\033[0m  %s\n' "$1"; }
 check() { local name="$1"; shift; if vm "$@" >/dev/null 2>&1; then pass "$name"; else fail "$name"; fi; }
 clean_run() { grep -Eq 'localhost +: ok=[0-9]+ +changed=0 +unreachable=0 +failed=0' "$1"; }
 
-ARGS=""
+# Remote desktop is off by default on a desktop; turn it on so wayvnc is tested.
+ARGS="-e remote_desktop_enabled=true"
 if [ -n "${GITHUB_USER:-}" ]; then
-  ARGS="-e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
+  ARGS="$ARGS -e github_user=$GITHUB_USER -e dotfiles_version=${DOTFILES_VERSION:-HEAD}"
 fi
 
 log "Run 1: ./bootstrap.sh $ARGS"
@@ -200,9 +201,12 @@ else fail "dry run reports changed=0 failed=0"; fi
 log "Checking the result"
 check "nothing waiting for a restart"     'rpm-ostree status --json | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin)[\"deployments\"][0][\"booted\"] else 1)"'
 check "packages layered with rpm-ostree"  'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty docker-ce tailscale'
-check "Firefox removed from the image"   '[ -z "$(rpm -qa "firefox*")" ]'
+check "Firefox kept"                     'rpm -q firefox'
 check "GNOME add-ons skipped on Sway"     '! rpm -q gnome-shell-extension-appindicator && ! rpm -q gvfs-goa'
 check "no GNOME Remote Login on Sway"     '! systemctl is-active --quiet gnome-remote-desktop'
+check "wayvnc installed and configured"  'rpm -q wayvnc && grep -qx enable_pam=true .config/wayvnc/config && test -s .config/wayvnc/rsa_key.pem && test -f /etc/pam.d/wayvnc'
+check "wayvnc starts with Sway"          'test -L .config/systemd/user/graphical-session.target.wants/wayvnc.service'
+check "VNC open to Tailscale only (if firewalld runs)" '! systemctl is-active --quiet firewalld || { r=$(sudo firewall-cmd --list-rich-rules); echo "$r" | grep -q "100.64.0.0/10.*5900" && ! echo "$r" | grep -q "192.168.0.0/16"; }'
 check "podman runs a container"          'podman run --rm quay.io/podman/hello'
 check "docker service is running"        'systemctl is-active --quiet docker'
 check "user is in the docker group"      'id -nG | grep -qw docker'

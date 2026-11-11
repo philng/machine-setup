@@ -230,6 +230,13 @@ else
   - Sign in to Tailscale: `sudo tailscale up` on Linux, or open the Tailscale app.
   - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
 DONE
+  if [ -f "$HOME/.config/wayvnc/config" ]; then
+    cat <<'DONE'
+  - Remote desktop (Sway): while you're logged in here, connect TigerVNC
+    Viewer to this machine's Tailscale name, port 5900, and log in with your
+    Linux user name and password.
+DONE
+  fi
   if [ -e /run/ostree-booted ]; then
     cat <<'DONE'
   - Fedora Atomic: restart (systemctl reboot) to finish removing preinstalled

@@ -46,6 +46,7 @@ $WingetPackages = @(
     'Docker.DockerDesktop'
     'RedHat.Podman'
     'Tailscale.Tailscale'
+    'TigerVNC.TigerVNC'            # VNC client for wayvnc on a Sway machine
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet

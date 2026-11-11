@@ -40,11 +40,10 @@ server_gui_packages:
   - gnome-shell-extension-appindicator
   - code
   - ghostty
-  - firefox                # Fedora's own build (servers only; the desktop removes it)
+  - firefox                # Fedora's own build
 
 # Headless: nothing to remove. GUI: the same clean-up as the desktop
-# (only packages that are actually installed get removed), except that
-# Firefox is kept: servers get it from server_gui_packages above.
+# (only packages that are actually installed get removed).
 packages_remove: "{{ server_gui_packages_remove if machine_gui | bool else [] }}"
 server_gui_packages_remove:
   - "chromium*"

@@ -126,14 +126,13 @@
       when:
         - ansible_facts.os_family != 'Darwin'
         - tailscale_enabled | bool
-    - role: remote_desktop   # GNOME Remote Login over RDP (Fedora)
+    - role: remote_desktop   # GNOME Remote Login (RDP) or wayvnc on Sway (Fedora)
       become: "{{ use_sudo }}"
       tags: remote_desktop
       when:
         - ansible_facts.os_family == 'RedHat'
         - remote_desktop_enabled | bool
         - machine_gui | bool
-        - not non_gnome_desktop | bool
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains
       when:
