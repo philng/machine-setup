@@ -27,6 +27,9 @@ case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or serv
 ARGS=(-e "profile=$PROFILE" ${GUI:+-e "machine_gui=$GUI"} ${DRY_RUN:+--check --diff} ${ARGS[@]+"${ARGS[@]}"})
 set -- "${ARGS[@]}"
 
+# True when there is a terminal to ask questions on (not in CI or ssh with no tty).
+have_tty() { (exec </dev/tty) 2>/dev/null; }
+
 REPO_URL="${REPO_URL:-}"   # only needed when not run from a checkout
 DEST="${DEST:-$HOME/machine-setup}"
 
@@ -92,6 +95,27 @@ if [ "$OS" != Darwin ]; then
       exit 0
     fi
     [ -n "$owner" ] || [ -n "${MACHINE_SETUP_IMAGE:-}" ] || { echo "Set MACHINE_SETUP_IMAGE=ghcr.io/<you>/machine-setup-sway" >&2; exit 1; }
+    # The images are private on GHCR, so the machine needs a token to download
+    # them, now and for every update. It's saved in /etc/ostree/auth.json
+    # (root only), where rpm-ostree and bootc look for registry logins.
+    if [[ "$IMAGE" == ghcr.io/* ]] && ! sudo grep -qs '"ghcr.io"' /etc/ostree/auth.json \
+       && ! skopeo inspect --no-creds "docker://$IMAGE:$TAG" >/dev/null 2>&1; then
+      token="${MACHINE_SETUP_GHCR_TOKEN:-}"
+      if [ -z "$token" ]; then
+        if ! have_tty; then
+          echo "The image is private: set MACHINE_SETUP_GHCR_TOKEN to a GitHub token with read:packages." >&2
+          exit 1
+        fi
+        echo "==> The image is private, so this machine needs a GitHub token to download it."
+        echo "    Create a classic token with only the read:packages scope at"
+        echo "    https://github.com/settings/tokens/new?scopes=read:packages&description=$(hostname)"
+        read -rsp "    Paste it here: " token </dev/tty; echo
+      fi
+      printf '%s' "$token" | sudo podman login --authfile /etc/ostree/auth.json \
+        --username "${MACHINE_SETUP_GHCR_USER:-${owner:-token}}" --password-stdin ghcr.io
+      sudo chmod 600 /etc/ostree/auth.json
+      unset token
+    fi
     echo "==> Switching this machine to $IMAGE:$TAG (downloads a few GB)"
     sudo rpm-ostree rebase "ostree-unverified-registry:$IMAGE:$TAG"
     echo
@@ -105,7 +129,6 @@ ansible-galaxy collection install -r requirements.yml
 
 # Read prompts from the terminal even when this script's stdin is a pipe.
 # Without a terminal (CI, ssh with no tty) every question below is skipped.
-have_tty() { (exec </dev/tty) 2>/dev/null; }
 run() { if have_tty; then "$@" </dev/tty; else "$@"; fi; }
 ask() { local reply; read -rp "$1" reply </dev/tty; printf '%s' "$reply"; }
 yaml_str() { printf "'%s'" "${1//\'/\'\'}"; }

@@ -27,8 +27,9 @@ systemctl reboot
 
 The first run switches the machine to this repo's image
 (`ghcr.io/<you>/machine-setup-sway:desktop`, `:desktop-nvidia` when it finds an
-NVIDIA card, or `:server`). After the restart, the second run does the per-user
-setup.
+NVIDIA card, or `:server`). The images are private, so that first run asks for
+a GitHub token that can read them (see below). After the restart, the second
+run does the per-user setup.
 
 **macOS:** the same clone and `~/machine-setup/bootstrap.sh`, once. It installs
 Homebrew, git and Ansible first.
@@ -84,9 +85,20 @@ vim and Ghostty roles write starter configs instead.
 [`.github/workflows/image.yml`](.github/workflows/image.yml) builds it every
 Tuesday (and when `bootc/` changes on `main`) and pushes
 `ghcr.io/<owner>/machine-setup-sway:desktop`, `:desktop-nvidia` and `:server`.
-Once, after the first build, make the package public on GitHub (your profile >
-Packages > machine-setup-sway > Package settings > Change visibility) so
-machines can pull it without signing in.
+The package stays private, so each machine logs in to GHCR to download it.
+bootstrap.sh asks for the token the first time and saves it in
+`/etc/ostree/auth.json` (readable by root only), where rpm-ostree and bootc
+look for it on every update. Create it at
+[github.com/settings/tokens](https://github.com/settings/tokens/new?scopes=read:packages):
+a classic token with only the `read:packages` scope (fine-grained tokens can't
+read packages). It can read your packages and nothing else. Without a terminal,
+pass it as `MACHINE_SETUP_GHCR_TOKEN`.
+
+If the token expires or you revoke it, updates stop until you log in again:
+
+```
+sudo podman login --authfile /etc/ostree/auth.json ghcr.io
+```
 
 To switch a machine by hand: `sudo rpm-ostree rebase
 ostree-unverified-registry:ghcr.io/<owner>/machine-setup-sway:<tag>`, then restart.
