@@ -1,9 +1,4 @@
 ---
-- name: Install flatpak
-  ansible.builtin.package:
-    name: flatpak
-    state: present
-
 - name: Add Flathub remote
   community.general.flatpak_remote:
     name: "{{ flatpak_remote_name }}"
@@ -18,12 +13,18 @@
     enabled: true
     method: system
 
+# Some apps download their payload from the vendor at install time (Spotify
+# from snapcraft.io, Chrome from Google), which can time out; try again.
 - name: Install Flatpak apps
   community.general.flatpak:
     name: "{{ flatpaks }}"
     remote: "{{ flatpak_remote_name }}"
     method: system
     state: present
+  register: flatpak_install
+  until: flatpak_install is succeeded
+  retries: 3
+  delay: 60
   when: flatpaks | length > 0
 
 - name: Remove Flatpak apps

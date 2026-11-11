@@ -1,0 +1,2 @@
+# Keep the open-source nouveau driver out of the way of NVIDIA's.
+kargs = ["rd.driver.blacklist=nouveau", "modprobe.blacklist=nouveau", "nvidia-drm.modeset=1"]

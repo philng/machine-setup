@@ -1,0 +1,9 @@
+---
+# Extra vars for the desktop VM test (tests/atomic-vm-test.sh).
+# The Spotify Flatpak downloads from snapcraft.io, which GitHub's runners
+# can't reach, so the test installs the other apps only. Real machines get
+# the full list from vars/apps.yml.
+flatpaks:
+  - com.google.Chrome
+  - org.videolan.VLC
+  - com.valvesoftware.Steam

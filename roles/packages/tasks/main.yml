@@ -1,15 +1,18 @@
 ---
-- name: Translate generic package names for {{ ansible_facts.os_family }}
+# Homebrew formulae on macOS. On Linux, packages come with the image
+# (bootc/packages/*.txt).
+- name: Translate generic package names for macOS
   ansible.builtin.set_fact:
     packages_resolved: "{{ packages | map('extract', dict(packages | zip(packages)) | combine(name_map)) | select | list }}"
     packages_remove_resolved: "{{ packages_remove | map('extract', dict(packages_remove | zip(packages_remove)) | combine(name_map)) | select | list }}"
   vars:
-    name_map: "{{ package_name_map[ansible_facts.os_family] | default({}) }}"
+    name_map: "{{ package_name_map.Darwin | default({}) }}"
+
+- name: Add Homebrew taps
+  community.general.homebrew_tap:
+    name: "{{ homebrew_taps }}"
+    state: present
+  when: homebrew_taps | length > 0
 
 - name: Install packages with Homebrew
   ansible.builtin.include_tasks: Darwin.yml
-  when: ansible_facts.os_family == 'Darwin'
-
-- name: Install packages with the native package manager
-  ansible.builtin.include_tasks: linux.yml
-  when: ansible_facts.os_family != 'Darwin'

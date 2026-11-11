@@ -1,0 +1,6 @@
+[Unit]
+Description=Restart into a downloaded update
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'rpm-ostree status --pending-exit-77 >/dev/null; [ $? -eq 77 ] && systemctl reboot || true'

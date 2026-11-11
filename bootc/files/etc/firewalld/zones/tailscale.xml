@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Managed by machine-setup (bootc/): what your tailnet may reach. -->
+<zone>
+  <short>Tailscale</short>
+  <description>Connections from your tailnet: SSH and remote desktop (VNC).</description>
+  <source address="100.64.0.0/10"/>
+  <source address="fd7a:115c:a1e0::/48"/>
+  <service name="ssh"/>
+  <port protocol="tcp" port="5900"/>
+</zone>

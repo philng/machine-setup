@@ -1,6 +1,0 @@
----
-- name: Add Homebrew taps
-  community.general.homebrew_tap:
-    name: "{{ homebrew_taps }}"
-    state: present
-  when: homebrew_taps | length > 0

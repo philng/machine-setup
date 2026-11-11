@@ -1,0 +1,4 @@
+# Added to the server image.
+tmux
+curl
+fail2ban

@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   Installs apps with winget, removes preinstalled apps, turns on dark mode,
-  installs Claude Code and mise (+ uv), and can optionally install WSL so the
-  Ansible playbook can set up a Linux shell too. Safe to re-run: anything
+  installs Claude Code and mise (+ uv), and can optionally install WSL with
+  Fedora. Safe to re-run: anything
   already installed or already removed is skipped.
 
   Run from a normal (non-admin) PowerShell window:
@@ -43,9 +43,9 @@ $WingetPackages = @(
     'Valve.Steam'
     'Microsoft.VisualStudioCode'
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
-    'Docker.DockerDesktop'
     'RedHat.Podman'
     'Tailscale.Tailscale'
+    'TigerVNC.TigerVNC'            # VNC client for wayvnc on a Sway machine
     'Anthropic.Claude'
     'Google.GoogleDrive'
     'Microsoft.WindowsTerminal'    # Ghostty has no Windows build yet
@@ -238,7 +238,7 @@ if ($WithWsl) {
         Write-Skip 'already installed'
     } else {
         wsl --install -d $WslDistro
-        Write-Warn 'Reboot if asked, open Fedora from the Start menu, then run ./bootstrap.sh from this repo inside it.'
+        Write-Warn 'Reboot if asked, then open Fedora from the Start menu.'
     }
 }
 
@@ -259,7 +259,7 @@ if ($failed.Count -gt 0) {
 }
 Write-Host @'
 What's left to do by hand:
-  - Open a new terminal so PATH changes take effect (sign out and in if Docker asks).
+  - Open a new terminal so PATH changes take effect.
   - Sign in to Chrome, Spotify, Google Drive and the Claude app.
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
   - Run `claude` once in a terminal to sign in to Claude Code.

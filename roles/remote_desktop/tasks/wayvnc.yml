@@ -1,0 +1,151 @@
+---
+# Sway: wayvnc shares your running Sway session over VNC (there's no login
+# screen: log in on the machine first). Connect with TigerVNC Viewer to
+# <machine>:5900 and log in with your Linux user name and password. The
+# connection is encrypted (RSA-AES, which TigerVNC supports) and only
+# reachable over Tailscale (the image's firewall).
+- name: Configure wayvnc for {{ target_user }}
+  become: "{{ use_sudo }}"
+  become_user: "{{ target_user }}"
+  vars:
+    wayvnc_dir: "{{ ansible_facts.env.HOME }}/.config/wayvnc"
+    unit_dir: "{{ ansible_facts.env.HOME }}/.config/systemd/user"
+  block:
+    - name: Create ~/.config/wayvnc
+      ansible.builtin.file:
+        path: "{{ wayvnc_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create the key that encrypts VNC connections
+      ansible.builtin.command:
+        cmd: ssh-keygen -q -m pem -t rsa -b 4096 -N "" -f {{ wayvnc_dir }}/rsa_key.pem
+        creates: "{{ wayvnc_dir }}/rsa_key.pem"
+
+    - name: Write ~/.config/wayvnc/config
+      ansible.builtin.copy:
+        dest: "{{ wayvnc_dir }}/config"
+        mode: "0600"
+        content: |
+          # Managed by machine-setup (roles/remote_desktop).
+          address=0.0.0.0
+          port={{ remote_desktop_vnc_port }}
+          enable_auth=true
+          enable_pam=true
+          rsa_private_key_file={{ wayvnc_dir }}/rsa_key.pem
+      register: wayvnc_config
+
+    # Started with the Sway session (graphical-session.target, which
+    # Fedora's Sway reaches through sway-systemd).
+    - name: Create ~/.config/systemd/user
+      ansible.builtin.file:
+        path: "{{ unit_dir }}/graphical-session.target.wants"
+        state: directory
+        mode: "0755"
+
+    - name: Write the wayvnc user service
+      ansible.builtin.copy:
+        dest: "{{ unit_dir }}/wayvnc.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=VNC server for the Sway session (wayvnc)
+          PartOf=graphical-session.target
+          After=graphical-session.target
+
+          [Service]
+          ExecStart=/usr/bin/wayvnc
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=graphical-session.target
+
+    - name: Start wayvnc with Sway
+      ansible.builtin.file:
+        src: "{{ unit_dir }}/wayvnc.service"
+        dest: "{{ unit_dir }}/graphical-session.target.wants/wayvnc.service"
+        state: link
+        force: "{{ ansible_check_mode }}"
+
+    - name: Lock the screen when Sway starts
+      ansible.builtin.copy:
+        dest: "{{ unit_dir }}/swaylock-at-login.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Lock the screen after an automatic login
+          PartOf=graphical-session.target
+          After=graphical-session.target
+
+          [Service]
+          Type=forking
+          ExecStart=/usr/bin/swaylock -f
+
+          [Install]
+          WantedBy=graphical-session.target
+      when: remote_desktop_autologin | bool
+
+    - name: Turn the screen lock at login on or off  # noqa: risky-file-permissions (a symlink)
+      ansible.builtin.file:
+        src: "{{ (unit_dir + '/swaylock-at-login.service') if remote_desktop_autologin | bool else omit }}"
+        dest: "{{ unit_dir }}/graphical-session.target.wants/swaylock-at-login.service"
+        state: "{{ 'link' if remote_desktop_autologin | bool else 'absent' }}"
+        force: "{{ ansible_check_mode }}"
+
+    - name: Find a running Sway session
+      ansible.builtin.stat:
+        path: "/run/user/{{ ansible_facts.user_uid }}/bus"
+      register: wayvnc_bus
+
+    - name: Restart wayvnc in the running session  # noqa: no-handler command-instead-of-module
+      ansible.builtin.command: systemctl --user try-restart wayvnc.service
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+      when:
+        - wayvnc_config is changed
+        - wayvnc_bus.stat.exists
+      changed_when: true
+      failed_when: false
+
+# Automatic login (remote_desktop_autologin, on for servers): gives VNC a
+# session to show after a restart. The screen locks straight away (above).
+- name: Check for SDDM
+  ansible.builtin.stat:
+    path: /usr/bin/sddm
+  register: rd_sddm
+
+- name: Create /etc/sddm.conf.d
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d
+    state: directory
+    mode: "0755"
+  when:
+    - remote_desktop_autologin | bool
+    - rd_sddm.stat.exists
+
+- name: Log in to Sway automatically at boot
+  ansible.builtin.copy:
+    dest: /etc/sddm.conf.d/50-machine-setup-autologin.conf
+    mode: "0644"
+    content: |
+      # Managed by machine-setup (roles/remote_desktop): log in for wayvnc.
+      [Autologin]
+      User={{ target_user }}
+      Session=sway
+  when:
+    - remote_desktop_autologin | bool
+    - rd_sddm.stat.exists
+
+- name: Turn automatic login off
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d/50-machine-setup-autologin.conf
+    state: absent
+  when: not remote_desktop_autologin | bool
+
+- name: Say automatic login isn't set up
+  ansible.builtin.debug:
+    msg: SDDM isn't the login manager here, so automatic login was skipped; log in once after each restart for VNC to work.
+  when:
+    - remote_desktop_autologin | bool
+    - not rd_sddm.stat.exists

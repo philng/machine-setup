@@ -1,25 +1,39 @@
 # machine-setup
 
-Ansible playbook that installs my apps on a fresh machine. Built for Fedora,
-also works on Debian/Ubuntu and macOS. Safe to re-run: a second run changes nothing.
+Sets up my machines from scratch: Fedora Sway Atomic (desktop and server),
+macOS and Windows. Safe to re-run: a second run changes nothing.
 
-| | Linux (Fedora, Debian/Ubuntu) | macOS |
+| | Fedora Sway Atomic | macOS |
 |---|---|---|
-| CLI tools | dnf / apt | Homebrew formulae |
+| System, CLI tools, VS Code, Ghostty, Tailscale | this repo's image ([`bootc/`](bootc/)) | Homebrew formulae and casks |
 | GUI apps | Flatpak from Flathub | Homebrew casks |
-| Extra sources | RPM Fusion, VS Code, Docker repos | Homebrew taps |
+| Per-user setup (dotfiles, zsh, vim, mise, Claude Code, fonts, git) | Ansible | Ansible |
+
+On Linux the heavy lifting is a container image: Fedora's Sway Atomic with the
+packages and system settings built in, rebuilt every week. Machines update to
+it like any Atomic system, and `rpm-ostree rollback` undoes an update.
+The Ansible playbook does the rest, as your user.
 
 ## Fresh machine
 
-The repo is public, so a fresh machine needs nothing signed in first:
+**Linux:** install [Fedora Sway Atomic](https://fedoraproject.org/atomic-desktops/sway/), then:
 
 ```sh
 git clone https://github.com/<you>/machine-setup.git ~/machine-setup   # your fork
-~/machine-setup/bootstrap.sh
+~/machine-setup/bootstrap.sh                    # or --profile server
+systemctl reboot
+~/machine-setup/bootstrap.sh                    # again, after the restart
 ```
 
-`bootstrap.sh` installs git and Ansible (installing Homebrew first on macOS),
-installs the Ansible collections, and runs the playbook. Along the way it:
+The first run switches the machine to this repo's image
+(`ghcr.io/<you>/machine-setup-sway:desktop`, `:desktop-nvidia` when it finds an
+NVIDIA card, or `:server`). After the restart, the second run does the per-user
+setup.
+
+**macOS:** the same clone and `~/machine-setup/bootstrap.sh`, once. It installs
+Homebrew, git and Ansible first.
+
+Along the way `bootstrap.sh`:
 
 - asks for your sudo password once;
 - on the first run, asks for your GitHub username (and, on a desktop, your git
@@ -30,7 +44,8 @@ installs the Ansible collections, and runs the playbook. Along the way it:
   so you approve two short prompts in the browser (skipped when the key is
   already on GitHub);
 - ends with the few things left to do by hand: log out and back in, sign in to
-  your apps, install IntelliJ from JetBrains Toolbox, and run `claude` once.
+  your apps and Tailscale, install IntelliJ from JetBrains Toolbox, and run
+  `claude` once.
 
 Without a terminal (CI, `ssh` with no tty) the questions and sign-in are skipped.
 
@@ -50,16 +65,72 @@ as `<file>.pre-dotfiles`. Edit the files in `~/.dotfiles`, commit and push, and
 every machine picks them up on its next run. Without a dotfiles repo, the zsh,
 vim and Ghostty roles write starter configs instead.
 
-## Update snapshots (Fedora)
+## The image
 
-On a btrfs system (Fedora's default), snapper takes a snapshot of `/` before and
-after every `dnf` transaction, including the automatic updates, keeping the last
-10 pairs. To undo a bad update:
+[`bootc/Containerfile`](bootc/Containerfile) builds Fedora Sway Atomic with:
+
+- the packages in [`bootc/packages/common.txt`](bootc/packages/common.txt) (CLI
+  tools, VS Code, Ghostty, Tailscale, wayvnc, Ansible, Intel video drivers) and,
+  for servers, [`server.txt`](bootc/packages/server.txt) (tmux, fail2ban). These
+  are the only Linux package lists: edit them to add or remove packages;
+- automatic updates, downloaded in the background and used from the next boot;
+- weekly Flatpak updates;
+- a firewall zone that lets your tailnet (and only your tailnet) reach SSH and
+  VNC;
+- for servers ([`bootc/server/`](bootc/server/)): key-only SSH, fail2ban, a
+  default firewall zone with only SSH open, and a restart at 4am when a
+  downloaded update is waiting.
+
+[`.github/workflows/image.yml`](.github/workflows/image.yml) builds it every
+Tuesday (and when `bootc/` changes on `main`) and pushes
+`ghcr.io/<owner>/machine-setup-sway:desktop`, `:desktop-nvidia` and `:server`.
+Once, after the first build, make the package public on GitHub (your profile >
+Packages > machine-setup-sway > Package settings > Change visibility) so
+machines can pull it without signing in.
+
+To switch a machine by hand: `sudo rpm-ostree rebase
+ostree-unverified-registry:ghcr.io/<owner>/machine-setup-sway:<tag>`, then restart.
+
+**NVIDIA machines** get `:desktop-nvidia` (bootstrap.sh picks it when it sees an NVIDIA card), which has NVIDIA's driver built in
+for the image's kernel (plus the kernel arguments that keep nouveau away and
+`--unsupported-gpu` for Sway). With Secure Boot on, the driver must be signed by
+a key the machine trusts, and the key must stay the same from build to build:
 
 ```sh
-sudo snapper -c root list                    # find the pre/post pair
-sudo snapper -c root undochange 42..43       # put files back as they were at 42
+# once, on any machine with openssl:
+openssl req -new -x509 -newkey rsa:2048 -nodes -days 36500 -subj "/CN=machine-setup akmods" \
+  -outform DER -keyout akmods.key -out akmods.der
+gh secret set AKMODS_KEY -R <owner>/machine-setup < akmods.key
+base64 -i akmods.der | tr -d '\n' | gh secret set AKMODS_CERT -R <owner>/machine-setup
+# once, on the NVIDIA machine once it's on the image (asks for a one-time password,
+# then confirm it in the blue MOK screen on the next boot):
+sudo mokutil --import /etc/pki/akmods/certs/public_key.der
 ```
+
+Then keep `akmods.key` somewhere safe and off the machine. Without the secrets,
+the image still builds but the driver only loads with Secure Boot off.
+
+**Signed images.** To have machines refuse any image that isn't signed by
+you, create a signing key once (on a machine with `cosign` and `gh`):
+
+```sh
+cosign generate-key-pair            # asks for a password; writes cosign.key and cosign.pub
+gh secret set COSIGN_PRIVATE_KEY -R <owner>/machine-setup < cosign.key
+gh secret set COSIGN_PASSWORD -R <owner>/machine-setup      # the password you chose
+cp cosign.pub ~/machine-setup/bootc/cosign.pub              # commit and push this one
+```
+
+Keep `cosign.key` in your password manager and delete the local copy. Builds
+then sign every image, and the image itself carries the public key and a rule
+requiring that signature. After a machine is on an image built with the key,
+switch it to checking signatures (once):
+
+```sh
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/<owner>/machine-setup-sway:desktop
+```
+
+Signing protects against a tampered image or registry, not against someone
+who can push to your repo's `main`: keep 2FA on your GitHub account.
 
 ## Making it yours
 
@@ -70,31 +141,25 @@ run of `bootstrap.sh`, and is loaded last, so any variable in it (`github_user`,
 `git_user_name`, `flatpaks`, `casks`, `ghostty_theme`, ...) wins over the
 defaults.
 
-## Fedora Server
+## Server profile
 
 ```sh
-~/machine-setup/bootstrap.sh --profile server            # GUI auto-detected
-~/machine-setup/bootstrap.sh --profile server --headless # or --gui to force it
+~/machine-setup/bootstrap.sh --profile server            # GUI (Sway)
+~/machine-setup/bootstrap.sh --profile server --headless # no desktop apps
 ```
 
-The server profile ([`vars/server.yml`](vars/server.yml)) is a leaner variant
-without the personal bits (no Spotify/VLC/Steam, no git name/email prompt, no GitHub
-sign-in):
+The server profile ([`vars/server.yml`](vars/server.yml)) runs on the `:server`
+image and leaves out the personal bits (only Chrome as a Flatpak, no git
+name/email prompt, no GitHub sign-in). Your public keys from
+`https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`; password
+and root SSH logins are off in the image, so only keys work. If no key is
+authorised the run warns you: add one before you close your session, or you'll
+only be able to log in at the console.
 
-- **Every server:** Tailscale, git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,
-  zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
-  and full automatic updates that reboot when an update needs it.
-- **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
-  GNOME Remote Login over RDP, Chrome and Firefox (Fedora's package), and the GNOME clean-up and dark mode.
-- **Hardening** ([`roles/server`](roles/server)): your public keys from
-  `https://github.com/<github_user>.keys` go into `~/.ssh/authorized_keys`, SSH root
-  and password logins are turned off, so only keys work. If no key is
-  authorised the run warns you: add one before you close your session, or
-  you'll only be able to log in at the console. fail2ban bans
-  repeated failed SSH logins, and firewalld leaves only SSH open (plus RDP over
-  Tailscale on a GUI server).
-
-Before closing the session that ran it, check you can still SSH in with your key.
+With a GUI, the server logs in to Sway automatically at boot and locks the screen
+straight away, so VNC has a session to show: connect with TigerVNC Viewer over
+Tailscale and unlock with your Linux password (`remote_desktop_autologin: false`
+turns this off).
 
 ## Windows
 
@@ -113,34 +178,31 @@ powershell -ExecutionPolicy Bypass -File windows\bootstrap.ps1
 # optional: -GitUserName "..." -GitUserEmail "..." -WithWsl
 ```
 
-`-WithWsl` also installs WSL with Fedora; run `./bootstrap.sh` inside it to get the
-Linux shell setup (zsh, antidote, vim, fzf and so on). The app lists live at the top
+`-WithWsl` also installs WSL with Fedora (a plain Fedora shell: `bootstrap.sh` is
+only for Sway Atomic and macOS). The app lists live at the top
 of the script, so keep them in step with `vars/apps.yml` by hand. CI lints the
 script and checks every winget ID exists on a Windows runner.
 
 ## Adding or removing apps
 
-Edit **`vars/apps.yml`**. That's the only file you normally touch.
+- **Linux packages:** [`bootc/packages/*.txt`](bootc/packages/) (rebuilt into the
+  image; machines get them with their next update).
+- Everything else: **`vars/apps.yml`**.
 
-- `packages` – CLI tools. Use a generic name; if a distro calls it something
-  else, add it to `package_name_map` (map to `""` to skip it on that OS).
-- `flatpaks` – Flathub app IDs (Linux GUI apps).
-- `casks` – Homebrew casks (macOS GUI apps).
-- `extra_repos` – `rpmfusion`, `vscode`, `docker` (Linux). `homebrew_taps` on macOS.
+In `vars/apps.yml`:
+
+- `flatpaks`, `flatpaks_remove` – Flathub app IDs (Linux GUI apps).
+- `packages`, `packages_remove` – Homebrew formulae (macOS).
+- `casks`, `casks_remove` – Homebrew casks (macOS GUI apps). `homebrew_taps` for extra taps.
 - `mac_apps_remove` – paths of preinstalled Apple apps to delete on macOS (GarageBand, iMovie, iWork).
   If macOS says "Operation not permitted", give your terminal App Management access in
   System Settings → Privacy & Security, then re-run.
-- `packages_remove`, `flatpaks_remove`, `casks_remove` – make sure these are gone. `packages_remove` accepts globs such as `libreoffice*` and only touches what is installed.
-- `tailscale_enabled` – Tailscale from its official repo with `tailscaled` running (Linux; the
-  `tailscale-app` cask on macOS, winget on Windows). Sign in with `sudo tailscale up`, or set
-  `tailscale_authkey` (and optionally `tailscale_up_args`, e.g. `["--ssh"]`) in `vars/local.yml`.
-- `remote_desktop_enabled` – GNOME Remote Login on Fedora: RDP into the login screen with
-  nobody logged in, port 3389 opened to Tailscale only
-  (add your LAN, e.g. `192.168.0.0/16`, to `remote_desktop_allowed_sources` to allow it too). On for a GUI server; set the RDP user name and password once
-  with `sudo grdctl --system rdp set-credentials <user> <password>`. If HTTPS certificates are on
-  for your tailnet ([DNS settings](https://login.tailscale.com/admin/dns)), RDP uses a trusted
-  certificate for `<name>.<tailnet>.ts.net` (renewed weekly) so clients don't warn; otherwise a
-  self-signed one.
+- `tailscale_authkey`, `tailscale_up_args` – join your tailnet without the browser (Linux;
+  put them in `vars/local.yml`). Otherwise run `sudo tailscale up` once.
+- `remote_desktop_enabled` – wayvnc: VNC into your running Sway session, port 5900,
+  Tailscale only. Connect with TigerVNC Viewer (the `tigervnc-viewer` cask, winget
+  `TigerVNC.TigerVNC`) and log in with your Linux user name and password; the connection
+  is encrypted. On for servers.
 - `jetbrains_toolbox_enabled` – JetBrains Toolbox in your home directory (Linux; a cask on macOS).
   Install IntelliJ IDEA from Toolbox's window on first launch.
 - `mise_enabled`, `mise_global_tools` – mise for per-project language versions (official
@@ -153,18 +215,11 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
 - `nerd_fonts` – Nerd Fonts installed into `~/.local/share/fonts` on Linux (casks on macOS).
 - `zsh_enabled` – zsh as your login shell plus the antidote plugin manager. A starter
   `~/.zshrc` and `~/.zsh_plugins.txt` are created only if missing; add plugins to the latter.
-- `gnome_settings` – GNOME settings as dconf `key: value` pairs (dark mode by default).
 - `git_user_name`, `git_user_email` – your git identity. The git role also sets delta as the
   diff pager, `gh` for GitHub https logins, and creates `~/.ssh/id_ed25519` if missing
   (add it to GitHub with `gh ssh-key add ~/.ssh/id_ed25519.pub`).
-- `auto_updates_enabled`, `auto_updates_type` – dnf-automatic (security updates by default) or
-  unattended-upgrades, plus a weekly Flatpak update timer.
-- `multimedia_enabled` – full ffmpeg/GStreamer codecs from RPM Fusion and GPU drivers (Intel/AMD
-  video decoding, NVIDIA driver). With Secure Boot, NVIDIA needs a one-time key enrollment.
-- `services_enabled`, `user_groups` – e.g. `docker` (Linux).
 - `dotfiles_enabled`, `dotfiles_repo`, `dotfiles_version` – clone your dotfiles and link
   `home/` into `~` (see Dotfiles above).
-- `snapshots_enabled` – snapper snapshots before/after every dnf transaction (Fedora, btrfs).
 - `macos_defaults` – macOS settings: dark mode, Dock auto-hide, fast key repeat, Finder
   showing extensions and hidden files (`roles/macos/defaults/main.yml`).
 
@@ -177,30 +232,29 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `repos`, `snapshots`, `packages`, `multimedia`, `flatpak`, `updates`, `gnome`, `git`, `tailscale`, `remote_desktop`, `jetbrains`, `casks`, `dotfiles`, `zsh`, `ghostty`, `vim`, `fonts`, `mise`, `claude`, `macos`, `server`.
+Tags: `packages`, `casks`, `macos`, `flatpak`, `tailscale`, `remote_desktop`, `jetbrains`, `dotfiles`, `vim`, `ghostty`, `mise`, `claude`, `fonts`, `git`, `zsh`, `server`.
 
 ## Layout
 
 ```
+bootc/Containerfile   the Sway Atomic image (built by .github/workflows/image.yml)
+bootc/packages/       the Linux package lists
+bootc/files/          system settings for every image; bootc/server/ for servers
+bootc/nvidia.sh       NVIDIA's driver, for :desktop-nvidia
 site.yml              the playbook (localhost)
-vars/apps.yml         your app lists (desktop profile)
+vars/apps.yml         your app lists and settings (desktop profile)
 vars/server.yml       server profile overrides
 vars/local.yml        per-machine settings (not committed)
-roles/repos           Linux repos (per-distro task files) / Homebrew taps
-roles/snapshots       snapper snapshots around dnf transactions (Fedora)
-roles/packages        dnf/apt via the generic package module, Homebrew on macOS
-roles/flatpak         Flathub remote + apps (Linux)
+roles/packages        Homebrew formulae and taps (macOS)
 roles/casks           Homebrew casks (macOS)
-roles/tailscale       Tailscale from its official repo (Linux)
-roles/remote_desktop  GNOME Remote Login over RDP (Fedora)
+roles/macos           macOS settings (defaults write)
+roles/flatpak         Flathub remote + apps (Linux)
+roles/tailscale       join the tailnet with an auth key (Linux)
+roles/remote_desktop  wayvnc in your Sway session (Linux)
 roles/jetbrains_toolbox  JetBrains Toolbox from jetbrains.com (Linux)
-roles/multimedia      codecs + GPU drivers (Fedora)
-roles/auto_updates    unattended updates + weekly Flatpak updates
-roles/gnome           GNOME settings via dconf
+roles/server          your SSH keys (server profile)
 roles/git_setup       ~/.gitconfig, delta, gh logins, SSH key
 roles/dotfiles        your dotfiles repo, linked into ~
-roles/macos           macOS settings (defaults write)
-roles/server          SSH keys, key-only SSH, fail2ban, firewall (server profile)
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
 roles/ghostty         starter Ghostty config
@@ -208,7 +262,8 @@ roles/fonts           Nerd Fonts (Linux)
 roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
 bootstrap.sh          first-run installer
-tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
+windows/bootstrap.ps1 Windows setup (winget)
+tests/atomic-vm-test.sh  end-to-end test in a throwaway Sway Atomic VM
 tests/mac-test.sh     the macOS checks (CI runner or tests/mac-vm-test.sh)
 ```
 
@@ -220,15 +275,15 @@ for a password.
 ## Testing in a throwaway VM
 
 ```sh
-sudo dnf install -y qemu-kvm qemu-img xorriso openssh-clients curl   # once
-tests/vm-test.sh            # add --keep to poke around afterwards
+sudo dnf install -y podman qemu-kvm qemu-img openssh-clients   # once (Fedora host)
+tests/atomic-vm-test.sh                 # add --profile server, or --keep to poke around
 ```
 
-It boots a fresh Fedora Cloud VM, pre-installs Firefox, Chromium and LibreOffice,
-copies this working tree in (uncommitted changes included), runs `./bootstrap.sh`,
-runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
-removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
-Needs a Linux x86_64 host with KVM.
+It builds this repo's image from the working tree, turns it into a VM disk with
+bootc-image-builder, boots it, copies this working tree in (uncommitted changes
+included), runs `./bootstrap.sh`, restarts, runs the playbook again expecting
+`changed=0`, then checks the packages, firewall, SSH, Flatpaks and so on, and
+prints PASS/FAIL. The VM is deleted afterwards. Needs a Linux x86_64 host with KVM.
 
 ### On a Mac (Apple Silicon)
 
@@ -252,13 +307,14 @@ push to `main`, on the 1st of every month (to catch upstream breakage), and by h
 Actions tab for any branch (optionally with a dotfiles branch to test). After
 `ansible-lint` and `shellcheck` it runs, in parallel:
 
-- the Fedora VM test for the desktop and the headless server profile, each with
-  the repo owner's dotfiles;
+- the Sway Atomic VM test for the desktop and the server profile, with the repo
+  owner's dotfiles;
+- a build of the `:desktop-nvidia` image (it can't boot without an NVIDIA card);
 - `tests/mac-test.sh` on a macOS runner;
 - a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.
 
-Each Fedora and Mac test does a setup run, a second run that must change
-nothing, and a `--dry-run` that must report no changes. If a Fedora job fails,
+Each VM and Mac test does a setup run, a second run that must change
+nothing, and a `--dry-run` that must report no changes. If a VM job fails,
 its logs are attached to the run.
 
 A pull request merges itself once every job passes. To hold one back, open it

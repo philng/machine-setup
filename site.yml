@@ -1,21 +1,20 @@
 ---
 # Set up this machine. Safe to re-run.
 #   ansible-playbook site.yml -K                  # everything (desktop profile)
-#   ansible-playbook site.yml -K -e profile=server              # Fedora Server
-#   ansible-playbook site.yml -K -e profile=server -e machine_gui=false
+#   ansible-playbook site.yml -K -e profile=server              # server profile
 #   ansible-playbook site.yml -K --tags flatpak   # one part
 #   ansible-playbook site.yml -K --check --diff   # dry run
 - name: Set up workstation
   hosts: local
   # Hardware facts take over a minute on macOS (system_profiler) and nothing
-  # needs them; the snapshots role gathers mounts itself.
+  # needs them.
   gather_subset: ['!hardware']
   vars_files:
     - vars/apps.yml
   vars:
     # The user who ran the playbook (lookups run before privilege escalation).
     target_user: "{{ lookup('ansible.builtin.env', 'USER') }}"
-    # Linux needs root for dnf/apt/flatpak. Homebrew refuses to run as root.
+    # Linux needs root for Flatpaks and system settings. Homebrew refuses to run as root.
     # (Set per role because facts aren't known yet at the play level.)
     use_sudo: "{{ ansible_facts.os_family != 'Darwin' }}"
     # "desktop" (default) or "server" (see vars/server.yml).
@@ -26,23 +25,40 @@
       ansible.builtin.assert:
         that:
           - profile in ['desktop', 'server']
-          - profile == 'desktop' or ansible_facts.distribution == 'Fedora'
-        fail_msg: "profile must be desktop or server, and the server profile is for Fedora Server."
+          - profile == 'desktop' or ansible_facts.os_family != 'Darwin'
+        fail_msg: "profile must be desktop or server (server is for Linux)."
         quiet: true
       tags: always
 
-    - name: Check for a desktop
+    # On Linux this runs on Fedora Sway Atomic with this repo's image
+    # (bootc/), which brings the packages and system settings.
+    - name: Check for Fedora Atomic
       ansible.builtin.stat:
-        path: /usr/bin/gnome-shell
-      register: gnome_shell
+        path: /run/ostree-booted
+      register: ostree_booted
       tags: always
 
-    # Desktops always have a GUI. Servers: --gui/--headless, else auto-detect.
+    - name: Check this is Fedora Sway Atomic (or macOS)
+      ansible.builtin.assert:
+        that: ansible_facts.os_family == 'Darwin' or ostree_booted.stat.exists
+        fail_msg: >-
+          On Linux this setup is for Fedora Sway Atomic. Install it, then run ./bootstrap.sh,
+          which switches the machine to this repo's image.
+        quiet: true
+      tags: always
+
+    - name: Check for Sway
+      ansible.builtin.stat:
+        path: /usr/bin/sway
+      register: sway_bin
+      tags: always
+
+    # The server profile also runs headless (machine_gui=false skips the desktop apps).
     - name: Work out whether this machine has a GUI
       ansible.builtin.set_fact:
         machine_gui: >-
           {{ true if profile == 'desktop' or ansible_facts.os_family == 'Darwin'
-             else (machine_gui | bool if machine_gui is defined else gnome_shell.stat.exists) }}
+             else (machine_gui | bool if machine_gui is defined else sway_bin.stat.exists) }}
       tags: always
 
     - name: Load the server profile
@@ -60,46 +76,40 @@
     - name: Show detected OS and profile
       ansible.builtin.debug:
         msg: >-
-          {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }} ({{ ansible_facts.os_family }}),
+          {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }},
           {{ profile }} profile, {{ 'GUI' if machine_gui | bool else 'headless' }}
       tags: always
 
   roles:
-    - role: repos         # Linux repos, or Homebrew taps on macOS
-      become: "{{ use_sudo }}"
-      tags: repos
-    - role: snapshots     # btrfs snapshots before/after every dnf update (Fedora)
-      become: "{{ use_sudo }}"
-      tags: snapshots
-      when:
-        - ansible_facts.distribution == 'Fedora'
-        - snapshots_enabled | bool
-    - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
-      become: "{{ use_sudo }}"
+    - role: packages      # Homebrew formulae and taps (macOS)
       tags: packages
-    - role: multimedia    # codecs + GPU drivers (Fedora, RPM Fusion)
+      when: ansible_facts.os_family == 'Darwin'
+    - role: casks         # GUI apps (macOS)
       become: "{{ use_sudo }}"
-      tags: multimedia
-      when: multimedia_enabled | bool
-    - role: flatpak       # GUI apps on Linux
+      tags: casks
+      when: ansible_facts.os_family == 'Darwin'
+    - role: macos         # dark mode, Dock, key repeat, Finder (macOS)
+      tags: macos
+      when: ansible_facts.os_family == 'Darwin'
+    - role: flatpak       # GUI apps from Flathub (Linux)
       become: "{{ use_sudo }}"
       tags: flatpak
       when:
         - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
-    - role: tailscale     # Tailscale VPN from its official repo (Linux)
+    - role: tailscale     # join the tailnet with an auth key, if set (Linux)
       become: "{{ use_sudo }}"
       tags: tailscale
       when:
         - ansible_facts.os_family != 'Darwin'
-        - tailscale_enabled | bool
-    - role: remote_desktop   # GNOME Remote Login over RDP (Fedora)
+        - tailscale_authkey | default('') | length > 0
+    - role: remote_desktop   # wayvnc in your Sway session (Linux)
       become: "{{ use_sudo }}"
       tags: remote_desktop
       when:
-        - ansible_facts.os_family == 'RedHat'
+        - ansible_facts.os_family != 'Darwin'
         - remote_desktop_enabled | bool
-        - machine_gui | bool
+        - sway_bin.stat.exists
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains
       when:
@@ -120,32 +130,14 @@
       when:
         - ghostty_theme | default('') | length > 0
         - machine_gui | bool
-    - role: mise          # mise + uv (Linux and macOS)
+    - role: mise          # mise + uv
       tags: mise
       when: mise_enabled | bool
-    - role: claude_code   # Claude Code CLI, native installer (Linux and macOS)
+    - role: claude_code   # Claude Code CLI, native installer
       tags: claude
       when: claude_code_enabled | bool
     - role: fonts         # Nerd Fonts (Linux; casks on macOS)
       tags: fonts
-      when:
-        - ansible_facts.os_family != 'Darwin'
-        - machine_gui | bool
-    - role: casks         # GUI apps on macOS
-      become: "{{ use_sudo }}"
-      tags: casks
-      when: ansible_facts.os_family == 'Darwin'
-    - role: macos         # dark mode, Dock, key repeat, Finder (macOS)
-      tags: macos
-      when: ansible_facts.os_family == 'Darwin'
-    - role: auto_updates  # dnf-automatic / unattended-upgrades + weekly Flatpak updates
-      become: "{{ use_sudo }}"
-      tags: updates
-      when:
-        - ansible_facts.os_family != 'Darwin'
-        - auto_updates_enabled | bool
-    - role: gnome         # GNOME settings (dark mode, ...)
-      tags: gnome
       when:
         - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
@@ -154,7 +146,7 @@
     - role: zsh           # antidote + zsh as login shell (after dotfiles)
       tags: zsh
       when: zsh_enabled | bool
-    - role: server        # SSH keys + key-only SSH, fail2ban, firewall (server profile)
+    - role: server        # your SSH keys (server profile)
       become: "{{ use_sudo }}"
       tags: server
       when: profile == 'server'

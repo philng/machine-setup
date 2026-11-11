@@ -6,7 +6,7 @@
 #
 #   tests/mac-test.sh
 #
-# 1. Pre-installs Firefox (as a cask) so its removal can be checked.
+# 1. Pre-installs Chromium (as a cask) so its removal can be checked.
 # 2. Runs ./bootstrap.sh, then the playbook again and expects changed=0.
 # 3. Checks each app and tool.
 set -uo pipefail
@@ -27,8 +27,8 @@ for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
   [ -x "$b" ] && eval "$("$b" shellenv)" && break
 done
 
-log "Preinstalling Firefox to check it gets removed"
-brew install --cask firefox >/dev/null 2>&1 || true
+log "Preinstalling Chromium to check it gets removed"
+brew install --cask chromium >/dev/null 2>&1 || true
 
 log "Run 1: ./bootstrap.sh"
 if ./bootstrap.sh 2>&1 | tee "$WORK/run1.log"; then
@@ -58,7 +58,7 @@ log "Checking the result"
 while read -r cask; do
   check "cask $cask installed" "brew list --cask $cask"
 done < <(sed -n '/^casks:/,/^[a-z_]*:/p' vars/apps.yml | sed -n 's/^  - \([a-z0-9-]*\).*/\1/p')
-check "Firefox removed"                  '! brew list --cask firefox'
+check "Chromium removed"                 '! brew list --cask chromium'
 check "git, gh, vim installed"           'command -v git && command -v gh && command -v vim'
 check "fzf, bat, btop and eza installed" 'command -v fzf && command -v bat && command -v btop && command -v eza'
 check "podman installed"                 'command -v podman'

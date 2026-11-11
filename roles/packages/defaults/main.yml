@@ -1,6 +1,7 @@
 ---
+# macOS: Homebrew formulae. (On Linux the packages are in the image:
+# bootc/packages/*.txt.)
 packages: []
 packages_remove: []
-services_enabled: []
-user_groups: []
+homebrew_taps: []
 package_name_map: {}

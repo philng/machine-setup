@@ -1,0 +1,71 @@
+# Fedora Sway Atomic with this repo's system packages and settings built in:
+# the packages (bootc/packages/*.txt, the only Linux package list), automatic
+# updates, the firewall, and for servers key-only SSH, fail2ban and restarts
+# into updates. Built weekly by .github/workflows/image.yml and pushed to
+#   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
+# Per-user and per-machine setup (dotfiles, zsh, mise, Claude Code, Flatpaks,
+# fonts, SSH keys, Tailscale sign-in) comes from the playbook.
+#
+# Build by hand from the repo root:
+#   podman build -f bootc/Containerfile --build-arg PROFILE=server -t sway:server .
+#   podman build -f bootc/Containerfile --build-arg NVIDIA=true -t sway:desktop-nvidia .
+ARG BASE=quay.io/fedora-ostree-desktops/sway-atomic:43
+FROM ${BASE}
+
+ARG PROFILE=desktop
+# true: build NVIDIA's driver in (see bootc/nvidia.sh).
+ARG NVIDIA=false
+
+COPY bootc/files/ /
+COPY bootc/packages/ /tmp/packages/
+COPY bootc/server/ /tmp/server/
+
+# RPM Fusion's release RPMs carry its signing keys, so they're installed
+# unverified (over HTTPS); everything after that is checked.
+RUN set -eux; \
+    case "$PROFILE" in desktop|server) ;; *) echo "PROFILE must be desktop or server" >&2; exit 1 ;; esac; \
+    rel="$(rpm -E %fedora)"; \
+    dnf -y install --nogpgcheck \
+      "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm" \
+      "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm"; \
+    lists=/tmp/packages/common.txt; \
+    if [ "$PROFILE" = server ]; then lists="$lists /tmp/packages/server.txt"; fi; \
+    dnf -y install $(sed -e 's/#.*//' $lists); \
+    systemctl enable tailscaled.service flatpak-update.timer rpm-ostreed-automatic.timer; \
+    if [ "$PROFILE" = server ]; then \
+      cp -a /tmp/server/. /; \
+      systemctl enable sshd.service fail2ban.service rpm-ostree-reboot.timer; \
+      firewall-offline-cmd --set-default-zone=server; \
+    fi; \
+    dnf clean all; \
+    rm -rf /tmp/packages /tmp/server /var/cache/* /var/lib/dnf /var/log/*
+
+# Image signing: with IMAGE_REPO set (the workflow sets it) and bootc/cosign.pub
+# committed, machines only accept updates signed with that key.
+ARG IMAGE_REPO=
+COPY bootc/ /tmp/bootc-src/
+RUN set -eux; \
+    if [ -n "$IMAGE_REPO" ] && [ -f /tmp/bootc-src/cosign.pub ]; then \
+      sh /tmp/bootc-src/signing.sh "$IMAGE_REPO" /tmp/bootc-src/cosign.pub; \
+    fi; \
+    rm -rf /tmp/bootc-src
+
+COPY bootc/nvidia.sh /tmp/nvidia.sh
+COPY bootc/nvidia/ /tmp/nvidia-files/
+RUN set -eux; \
+    if [ "$NVIDIA" = true ]; then cp -a /tmp/nvidia-files/. /; sh /tmp/nvidia.sh install; fi
+# The signing key is only mounted for this step (compiling and signing).
+RUN --mount=type=secret,id=akmods_key --mount=type=secret,id=akmods_cert \
+    set -eux; \
+    if [ "$NVIDIA" = true ]; then \
+      sh /tmp/nvidia.sh build; \
+      dnf clean all; \
+      rm -rf /var/cache/* /var/lib/dnf /var/log/*; \
+    fi; \
+    rm -rf /tmp/nvidia.sh /tmp/nvidia-files
+
+LABEL org.opencontainers.image.title="machine-setup Sway Atomic (${PROFILE})" \
+      org.opencontainers.image.description="Fedora Sway Atomic with machine-setup's packages" \
+      containers.bootc=1
+
+RUN bootc container lint
