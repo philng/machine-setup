@@ -214,7 +214,7 @@ else fail "dry run reports changed=0 failed=0"; fi
 
 log "Checking the result ($PROFILE profile)"
 check "nothing waiting for a restart"     'rpm-ostree status --json | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin)[\"deployments\"][0][\"booted\"] else 1)"'
-check "packages come with the image (nothing layered)" 'rpm -q gh code ghostty tailscale wayvnc ansible-core && ! rpm-ostree status --json | python3 -c "import json,sys; d=json.load(sys.stdin)[\"deployments\"][0]; sys.exit(1 if d.get(\"requested-packages\") else 0)"'
+check "packages come with the image (nothing layered)" 'rpm -q gh code ghostty tailscale wayvnc ansible-core && rpm-ostree status --json | python3 -c "import json,sys; d=json.load(sys.stdin)[\"deployments\"][0]; sys.exit(1 if d.get(\"requested-packages\") else 0)"'
 check "Firefox kept"                     'rpm -q firefox'
 check "wayvnc installed and configured"  'rpm -q wayvnc && grep -qx enable_pam=true .config/wayvnc/config && test -s .config/wayvnc/rsa_key.pem && test -f /etc/pam.d/wayvnc'
 check "wayvnc starts with Sway"          'test -L .config/systemd/user/graphical-session.target.wants/wayvnc.service'
