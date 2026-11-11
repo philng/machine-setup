@@ -181,7 +181,9 @@ if [ "$PROFILE" = server ]; then
   BOOT_ARGS="--profile server"
 else
   # Remote desktop is off by default on a desktop; turn it on so wayvnc is tested.
-  PB_ARGS="-e remote_desktop_enabled=true"
+  # Spotify is left out: its Flatpak comes from snapcraft.io, which CI can't
+  # reach (see tests/vm-desktop-vars.yml).
+  PB_ARGS="-e remote_desktop_enabled=true -e @tests/vm-desktop-vars.yml"
   BOOT_ARGS="$PB_ARGS"
 fi
 if [ -n "${GITHUB_USER:-}" ]; then
