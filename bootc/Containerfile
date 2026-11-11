@@ -3,8 +3,9 @@
 # updates, the firewall, and for servers key-only SSH, fail2ban and restarts
 # into updates. Built weekly by .github/workflows/image.yml and pushed to
 #   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
-# Per-user and per-machine setup (dotfiles, zsh, mise, Claude Code, Flatpaks,
-# fonts, SSH keys, Tailscale sign-in) comes from the playbook.
+# Nerd Fonts come from bootc/fonts.txt. Per-user and per-machine setup
+# (dotfiles, zsh, mise, Claude Code, Flatpaks, SSH keys, Tailscale sign-in)
+# comes from the playbook.
 #
 # Build by hand from the repo root:
 #   podman build -f bootc/Containerfile --build-arg PROFILE=server -t sway:server .
@@ -39,6 +40,17 @@ RUN set -eux; \
     fi; \
     dnf clean all; \
     rm -rf /tmp/packages /tmp/server /var/cache/* /var/lib/dnf /var/log/*
+
+# Nerd Fonts (bootc/fonts.txt), for every user.
+COPY bootc/fonts.txt /tmp/fonts.txt
+RUN set -eux; \
+    for font in $(sed -e 's/#.*//' /tmp/fonts.txt); do \
+      mkdir -p "/usr/share/fonts/nerd-fonts/$font"; \
+      curl -fsSL --retry 3 "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$font.tar.xz" \
+        | tar -xJ -C "/usr/share/fonts/nerd-fonts/$font"; \
+    done; \
+    fc-cache -f /usr/share/fonts/nerd-fonts; \
+    rm /tmp/fonts.txt
 
 # Image signing: with IMAGE_REPO set (the workflow sets it) and bootc/cosign.pub
 # committed, machines only accept updates signed with that key.

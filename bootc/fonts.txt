@@ -1,0 +1,5 @@
+# Nerd Fonts built into the image (in /usr/share/fonts/nerd-fonts), the
+# latest release each time the image is built. Names are the archive names on
+# https://github.com/ryanoasis/nerd-fonts/releases (e.g. FiraCode, Hack).
+# On macOS, add the font-*-nerd-font cask in vars/apps.yml instead.
+JetBrainsMono

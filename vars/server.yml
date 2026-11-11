@@ -4,7 +4,7 @@
 # (remote desktop over Tailscale only) and restarts into updates at 4am.
 # Lists here replace the desktop ones. Anything not set here (zsh, vim, mise,
 # Claude Code, dotfiles, ...) comes from vars/apps.yml unchanged.
-# machine_gui is false with --headless: no Flatpaks, fonts, Toolbox or VNC.
+# machine_gui is false with --headless: no Flatpaks, Toolbox or VNC.
 
 # Flatpaks (GUI only).
 flatpaks:

@@ -136,11 +136,6 @@
     - role: claude_code   # Claude Code CLI, native installer
       tags: claude
       when: claude_code_enabled | bool
-    - role: fonts         # Nerd Fonts (Linux; casks on macOS)
-      tags: fonts
-      when:
-        - ansible_facts.os_family != 'Darwin'
-        - machine_gui | bool
     - role: git_setup     # ~/.gitconfig, delta, gh logins, SSH key
       tags: git
     - role: zsh           # antidote + zsh as login shell (after dotfiles)

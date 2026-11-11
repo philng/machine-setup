@@ -5,9 +5,9 @@ macOS and Windows. Safe to re-run: a second run changes nothing.
 
 | | Fedora Sway Atomic | macOS |
 |---|---|---|
-| System, CLI tools, VS Code, Ghostty, Tailscale | this repo's image ([`bootc/`](bootc/)) | Homebrew formulae and casks |
+| System, CLI tools, VS Code, Ghostty, Tailscale, fonts | this repo's image ([`bootc/`](bootc/)) | Homebrew formulae and casks |
 | GUI apps | Flatpak from Flathub | Homebrew casks |
-| Per-user setup (dotfiles, zsh, vim, mise, Claude Code, fonts, git) | Ansible | Ansible |
+| Per-user setup (dotfiles, zsh, vim, mise, Claude Code, git) | Ansible | Ansible |
 
 On Linux the heavy lifting is a container image: Fedora's Sway Atomic with the
 packages and system settings built in, rebuilt every week. Machines update to
@@ -73,6 +73,8 @@ vim and Ghostty roles write starter configs instead.
   tools, VS Code, Ghostty, Tailscale, wayvnc, Ansible, Intel video drivers) and,
   for servers, [`server.txt`](bootc/packages/server.txt) (tmux, fail2ban). These
   are the only Linux package lists: edit them to add or remove packages;
+- the Nerd Fonts in [`bootc/fonts.txt`](bootc/fonts.txt) (JetBrains Mono), for
+  every user;
 - automatic updates, downloaded in the background and used from the next boot;
 - weekly Flatpak updates;
 - a firewall zone that lets your tailnet (and only your tailnet) reach SSH and
@@ -187,6 +189,8 @@ script and checks every winget ID exists on a Windows runner.
 
 - **Linux packages:** [`bootc/packages/*.txt`](bootc/packages/) (rebuilt into the
   image; machines get them with their next update).
+- **Linux fonts:** [`bootc/fonts.txt`](bootc/fonts.txt) (Nerd Font names, also
+  built into the image).
 - Everything else: **`vars/apps.yml`**.
 
 In `vars/apps.yml`:
@@ -212,7 +216,6 @@ In `vars/apps.yml`:
   updates itself). The Claude desktop app is the `claude` cask on macOS.
 - `ghostty_theme` – theme for a starter `~/.config/ghostty/config` (only created if missing).
 - `vim_enabled` – vim-plug for vim; a starter `~/.vimrc` is created only if missing.
-- `nerd_fonts` – Nerd Fonts installed into `~/.local/share/fonts` on Linux (casks on macOS).
 - `zsh_enabled` – zsh as your login shell plus the antidote plugin manager. A starter
   `~/.zshrc` and `~/.zsh_plugins.txt` are created only if missing; add plugins to the latter.
 - `git_user_name`, `git_user_email` – your git identity. The git role also sets delta as the
@@ -232,13 +235,14 @@ ansible-playbook site.yml -K --tags flatpak       # just one part
 ansible-playbook site.yml -K --check --diff       # dry run (or ./bootstrap.sh --dry-run)
 ```
 
-Tags: `packages`, `casks`, `macos`, `flatpak`, `tailscale`, `remote_desktop`, `jetbrains`, `dotfiles`, `vim`, `ghostty`, `mise`, `claude`, `fonts`, `git`, `zsh`, `server`.
+Tags: `packages`, `casks`, `macos`, `flatpak`, `tailscale`, `remote_desktop`, `jetbrains`, `dotfiles`, `vim`, `ghostty`, `mise`, `claude`, `git`, `zsh`, `server`.
 
 ## Layout
 
 ```
 bootc/Containerfile   the Sway Atomic image (built by .github/workflows/image.yml)
 bootc/packages/       the Linux package lists
+bootc/fonts.txt       the Nerd Fonts built into the image
 bootc/files/          system settings for every image; bootc/server/ for servers
 bootc/nvidia.sh       NVIDIA's driver, for :desktop-nvidia
 site.yml              the playbook (localhost)
@@ -258,7 +262,6 @@ roles/dotfiles        your dotfiles repo, linked into ~
 roles/zsh             antidote + zsh login shell
 roles/vim             vim-plug + starter ~/.vimrc
 roles/ghostty         starter Ghostty config
-roles/fonts           Nerd Fonts (Linux)
 roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
 bootstrap.sh          first-run installer
