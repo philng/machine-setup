@@ -88,7 +88,7 @@
 
     - name: Turn the screen lock at login on or off  # noqa: risky-file-permissions (a symlink)
       ansible.builtin.file:
-        src: "{{ unit_dir }}/swaylock-at-login.service"
+        src: "{{ (unit_dir + '/swaylock-at-login.service') if remote_desktop_autologin | bool else omit }}"
         dest: "{{ unit_dir }}/graphical-session.target.wants/swaylock-at-login.service"
         state: "{{ 'link' if remote_desktop_autologin | bool else 'absent' }}"
         force: "{{ ansible_check_mode }}"
