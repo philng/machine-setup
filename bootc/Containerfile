@@ -1,16 +1,14 @@
-# Fedora Sway Atomic with this repo's system packages built in, so machines
-# get them (and their updates) as part of the image instead of layering them
-# one by one. Built weekly by .github/workflows/image.yml and pushed to
+# Fedora Sway Atomic with this repo's system packages and settings built in:
+# the packages (bootc/packages/*.txt, the only Linux package list), automatic
+# updates, the firewall, and for servers key-only SSH, fail2ban and restarts
+# into updates. Built weekly by .github/workflows/image.yml and pushed to
 #   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
-# Per-user setup (dotfiles, zsh, mise, Claude Code, Flatpaks, fonts) and
-# machine-specific config (firewall, SSH keys, Tailscale sign-in) still come
-# from the playbook, which finds these packages already installed.
+# Per-user and per-machine setup (dotfiles, zsh, mise, Claude Code, Flatpaks,
+# fonts, SSH keys, Tailscale sign-in) comes from the playbook.
 #
 # Build by hand from the repo root:
 #   podman build -f bootc/Containerfile --build-arg PROFILE=server -t sway:server .
 #   podman build -f bootc/Containerfile --build-arg NVIDIA=true -t sway:desktop-nvidia .
-#
-# Keep the package lists in step with vars/apps.yml and vars/server.yml.
 ARG BASE=quay.io/fedora-ostree-desktops/sway-atomic:43
 FROM ${BASE}
 
@@ -19,6 +17,8 @@ ARG PROFILE=desktop
 ARG NVIDIA=false
 
 COPY bootc/files/ /
+COPY bootc/packages/ /tmp/packages/
+COPY bootc/server/ /tmp/server/
 
 # RPM Fusion's release RPMs carry its signing keys, so they're installed
 # unverified (over HTTPS); everything after that is checked.
@@ -28,14 +28,17 @@ RUN set -eux; \
     dnf -y install --nogpgcheck \
       "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm" \
       "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm"; \
-    pkgs="zsh vim-enhanced gh fzf bat btop eza git-delta pciutils fontconfig \
-          code ghostty tailscale wayvnc \
-          intel-media-driver"; \
-    if [ "$PROFILE" = server ]; then pkgs="$pkgs tmux curl fail2ban"; fi; \
-    dnf -y install $pkgs; \
-    systemctl enable tailscaled.service; \
+    lists=/tmp/packages/common.txt; \
+    if [ "$PROFILE" = server ]; then lists="$lists /tmp/packages/server.txt"; fi; \
+    dnf -y install $(sed -e 's/#.*//' $lists); \
+    systemctl enable tailscaled.service flatpak-update.timer rpm-ostreed-automatic.timer; \
+    if [ "$PROFILE" = server ]; then \
+      cp -a /tmp/server/. /; \
+      systemctl enable sshd.service fail2ban.service rpm-ostree-reboot.timer; \
+      firewall-offline-cmd --set-default-zone=server; \
+    fi; \
     dnf clean all; \
-    rm -rf /var/cache/* /var/lib/dnf /var/log/*
+    rm -rf /tmp/packages /tmp/server /var/cache/* /var/lib/dnf /var/log/*
 
 # Image signing: with IMAGE_REPO set (the workflow sets it) and bootc/cosign.pub
 # committed, machines only accept updates signed with that key.

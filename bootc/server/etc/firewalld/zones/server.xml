@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Managed by machine-setup (bootc/server): the default zone, SSH only. -->
+<zone>
+  <short>Server</short>
+  <description>Only SSH (with keys) is reachable; remote desktop only over Tailscale.</description>
+  <service name="ssh"/>
+  <service name="dhcpv6-client"/>
+</zone>

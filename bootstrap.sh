@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Fresh-machine setup for Fedora (including Atomic), Debian/Ubuntu or macOS.
+# Fresh-machine setup for Fedora Sway Atomic or macOS.
 #   ./bootstrap.sh                 # from a checkout of this repo
 #   REPO_URL=https://github.com/<you>/machine-setup.git bash <(curl -fsSL <raw URL of this file>)
-#   ./bootstrap.sh --profile server [--gui | --headless]   # Fedora Server
+#   ./bootstrap.sh --profile server [--headless]   # server profile
 #   ./bootstrap.sh --dry-run       # show what would change, change nothing
 # Extra args go to ansible-playbook, e.g.  ./bootstrap.sh --tags packages
 set -euo pipefail
@@ -47,26 +47,11 @@ if [ "$OS" = "Darwin" ]; then
   done
   brew install git ansible
 elif [ -e /run/ostree-booted ]; then
-  # Fedora Atomic (Silverblue, Sway Atomic, ...): /usr is read-only, so layer
-  # Ansible with rpm-ostree and apply it live (no restart needed).
-  need=()
-  command -v git >/dev/null 2>&1 || need+=(git)
-  command -v ansible-playbook >/dev/null 2>&1 || need+=(ansible-core)
-  if [ ${#need[@]} -gt 0 ]; then
-    if ! sudo rpm-ostree install -y --idempotent --apply-live "${need[@]}"; then
-      echo "Couldn't install Ansible live (an update is probably waiting for a restart)." >&2
-      echo "Restart (systemctl reboot) and run this again." >&2
-      exit 1
-    fi
-  fi
-elif command -v dnf >/dev/null 2>&1; then
-  # python3-libdnf5 lets Ansible drive dnf5 (Fedora 41+).
-  sudo dnf install -y git ansible-core python3-libdnf5
-elif command -v apt-get >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo apt-get install -y git ansible-core python3-debian
+  # Fedora Sway Atomic: Ansible comes with this repo's image (switched to below).
+  command -v git >/dev/null 2>&1 || { echo "git is missing; is this Fedora Sway Atomic?" >&2; exit 1; }
 else
-  echo "Unsupported system: need macOS, dnf or apt." >&2
+  echo "On Linux this setup is for Fedora Sway Atomic (https://fedoraproject.org/atomic-desktops/sway/)." >&2
+  echo "Install it, then run this again." >&2
   exit 1
 fi
 
@@ -86,6 +71,34 @@ else
   git clone "$REPO_URL" "$DEST"
 fi
 cd "$DEST"
+
+# --- Fedora Sway Atomic: switch to this repo's image ---------------------------
+# The image (bootc/) brings the packages and system settings. Its address
+# comes from this checkout's GitHub owner, or MACHINE_SETUP_IMAGE.
+if [ "$OS" != Darwin ]; then
+  owner="$(git remote get-url origin 2>/dev/null | sed -nE 's#.*github\.com[:/]([^/]+)/.*#\1#p' | tr '[:upper:]' '[:lower:]')"
+  IMAGE="${MACHINE_SETUP_IMAGE:-ghcr.io/$owner/machine-setup-sway}"
+  # NVIDIA graphics (PCI vendor 10de, display class 03xx) get the image with
+  # NVIDIA's driver built in.
+  nvidia=""
+  for dev in /sys/bus/pci/devices/*; do
+    if [ "$(cat "$dev/vendor" 2>/dev/null)" = 0x10de ] && grep -q '^0x03' "$dev/class" 2>/dev/null; then nvidia=1; fi
+  done
+  if [ "$PROFILE" = server ]; then TAG=server; elif [ -n "$nvidia" ]; then TAG=desktop-nvidia; else TAG=desktop; fi
+  current="$(rpm-ostree status --booted --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0].get("container-image-reference", ""))')"
+  if ! command -v ansible-playbook >/dev/null 2>&1 || [[ "$current" != *machine-setup-sway* ]]; then
+    if [ -n "$DRY_RUN" ]; then
+      echo "==> Dry run: would switch this machine to $IMAGE:$TAG"
+      exit 0
+    fi
+    [ -n "$owner" ] || [ -n "${MACHINE_SETUP_IMAGE:-}" ] || { echo "Set MACHINE_SETUP_IMAGE=ghcr.io/<you>/machine-setup-sway" >&2; exit 1; }
+    echo "==> Switching this machine to $IMAGE:$TAG (downloads a few GB)"
+    sudo rpm-ostree rebase "ostree-unverified-registry:$IMAGE:$TAG"
+    echo
+    echo "==> Restart (systemctl reboot), then run ./bootstrap.sh again to finish."
+    exit 0
+  fi
+fi
 
 echo "==> Installing Ansible collections"
 ansible-galaxy collection install -r requirements.yml
@@ -209,42 +222,28 @@ if [ "$PROFILE" = server ]; then
   - Run `claude` once to sign in to Claude Code.
   - Run `sudo tailscale up` and open the link it prints to add this machine to
     your tailnet (skip if you set tailscale_authkey).
-  - Sway server: it logs in automatically at boot with the screen locked.
-    Connect TigerVNC Viewer to this machine's Tailscale name, port 5900, and
-    unlock with your Linux user name and password.
-  - GNOME server: choose a remote desktop user name and password with
-      sudo grdctl --system rdp set-credentials <user> <password>
-    then connect with any RDP client to this machine's Tailscale name or
-    100.x address (RDP only accepts connections over Tailscale). To avoid
-    certificate warnings, turn on HTTPS certificates at
-    https://login.tailscale.com/admin/dns, re-run, and connect to the full
-    <name>.<tailnet>.ts.net name.
-    Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
+  - With a GUI: it logs in to Sway automatically at boot with the screen
+    locked. Connect TigerVNC Viewer to this machine's Tailscale name, port
+    5900, and unlock with your Linux user name and password. Open JetBrains
+    Toolbox and click Install next to IntelliJ IDEA.
 DONE
 else
   cat <<'DONE'
 
 ==> Done. What's left to do by hand:
   - Log out and back in (zsh becomes your shell).
-  - Sign in to Chrome, Spotify and the Claude app, and to Google Drive
-    (on Linux: Settings > Online Accounts > Google).
+  - Sign in to Chrome and Spotify (and on macOS the Claude app and Google Drive).
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
   - Run `claude` once in a terminal to sign in to Claude Code.
   - Sign in to Tailscale: `sudo tailscale up` on Linux, or open the Tailscale app.
-  - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
+  - NVIDIA with Secure Boot (once): sudo mokutil --import /etc/pki/akmods/certs/public_key.der
+    then restart and confirm the key in the blue MOK screen.
 DONE
   if [ -f "$HOME/.config/wayvnc/config" ]; then
     cat <<'DONE'
   - Remote desktop (Sway): while you're logged in here, connect TigerVNC
     Viewer to this machine's Tailscale name, port 5900, and log in with your
     Linux user name and password.
-DONE
-  fi
-  if [ -e /run/ostree-booted ]; then
-    cat <<'DONE'
-  - Fedora Atomic: restart (systemctl reboot) to finish removing preinstalled
-    apps. If the playbook stopped early to wait for a restart, run
-    ./bootstrap.sh again afterwards.
 DONE
   fi
 fi

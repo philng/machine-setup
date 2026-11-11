@@ -1,0 +1,10 @@
+# Managed by machine-setup (bootc/server).
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+backend = systemd
+banaction = firewallcmd-rich-rules
+
+[sshd]
+enabled = true

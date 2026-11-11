@@ -1,0 +1,4 @@
+#%PAM-1.0
+# wayvnc checks your own password (it runs as you, so only you can log in).
+auth       include      system-auth
+account    include      system-auth

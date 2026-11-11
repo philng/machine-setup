@@ -4,21 +4,17 @@
 #
 #   tests/atomic-vm-test.sh                 # Sway Atomic 43
 #   tests/atomic-vm-test.sh --release 42    # another Fedora release
-#   tests/atomic-vm-test.sh --image quay.io/fedora-ostree-desktops/silverblue:43
-#                                           # another Atomic desktop
+#   tests/atomic-vm-test.sh --image <base image>   # another base than Sway Atomic
 #   tests/atomic-vm-test.sh --keep          # leave the VM running afterwards
 #   tests/atomic-vm-test.sh --profile server  # the server profile
-#   tests/atomic-vm-test.sh --build-image   # start from this repo's bootc image
-#                                           # (bootc/Containerfile, built now)
 #
 # What it does:
-#   1. Builds a VM disk from Fedora's Sway Atomic image once, with
-#      bootc-image-builder (cached in ~/.cache/machine-setup-vm). The only
-#      changes: a "tester" user with an SSH key and passwordless sudo, and sshd on.
+#   1. Builds this repo's image (bootc/Containerfile) for the profile, then a VM
+#      disk from it with bootc-image-builder. The only test additions: a
+#      "tester" user with an SSH key and passwordless sudo, and sshd on.
 #   2. Boots a fresh VM from a disposable copy-on-write disk.
 #   3. Copies THIS working tree into the VM and runs ./bootstrap.sh, restarts
-#      the VM (Atomic applies removals on the next boot), runs the playbook
-#      again and expects changed=0, then a --dry-run.
+#      the VM, runs the playbook again and expects changed=0, then a --dry-run.
 #   4. Checks the results and prints PASS/FAIL.
 #
 # Needs: Linux x86_64 with KVM, podman (run with sudo), qemu, ssh.
@@ -29,7 +25,6 @@ RELEASE=43
 IMAGE=""
 KEEP=0
 PROFILE=desktop
-BUILD_IMAGE=0
 SSH_PORT="${SSH_PORT:-2224}"
 MEM_MB="${MEM_MB:-4096}"
 CPUS="${CPUS:-2}"
@@ -41,7 +36,6 @@ while [ $# -gt 0 ]; do
     --image) IMAGE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
-    --build-image) BUILD_IMAGE=1; shift ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
     -h|--help) sed -n '3,21p' "$0"; exit 0 ;;
@@ -86,19 +80,16 @@ trap cleanup EXIT
 # ------------------------------------------------------------ disk image
 KEY="$CACHE/atomic_id_ed25519"
 [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
-BASE="$CACHE/$(basename "${IMAGE%%:*}")-${IMAGE##*:}.qcow2"
-if [ "$BUILD_IMAGE" = 1 ]; then
-  log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
-  IMAGE="localhost/machine-setup-sway:$PROFILE"
-  sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
-    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
-    --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
-    -t "$IMAGE" "$REPO_DIR"
-  BASE="$WORK/image-base.qcow2"   # always fresh: it's built from this working tree
-fi
+log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
+IMAGE="localhost/machine-setup-sway:$PROFILE"
+sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
+  --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
+  --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
+  -t "$IMAGE" "$REPO_DIR"
+BASE="$WORK/image-base.qcow2"   # built fresh from this working tree every time
 
-if [ ! -f "$BASE" ]; then
-  log "Building a VM disk from $IMAGE (once; about 10 minutes)"
+{
+  log "Building a VM disk from $IMAGE (about 10 minutes)"
   build="$WORK/build"
   mkdir -p "$build/output"
   cat > "$build/Containerfile" <<EOF
@@ -117,21 +108,19 @@ groups = ["wheel"]
 mountpoint = "/"
 minsize = "40 GiB"
 EOF
-  sudo podman build -q -t localhost/machine-setup-atomic-test "$build"
+  sudo podman build -q -t localhost/machine-setup-sway-test "$build"
   sudo podman run --rm --privileged --pull=newer \
     --security-opt label=type:unconfined_t \
     -v "$build/config.toml:/config.toml:ro" \
     -v "$build/output:/output" \
     -v /var/lib/containers/storage:/var/lib/containers/storage \
-    "$BIB" --type qcow2 --rootfs btrfs localhost/machine-setup-atomic-test
+    "$BIB" --type qcow2 --rootfs btrfs localhost/machine-setup-sway-test
   sudo mv "$build/output/qcow2/disk.qcow2" "$BASE.part"
   sudo chown "$(id -u):$(id -g)" "$BASE.part"
   mv "$BASE.part" "$BASE"
   # The container images aren't needed any more; free the disk space.
-  sudo podman rmi -f localhost/machine-setup-atomic-test "$IMAGE" "$UPSTREAM" "$BIB" >/dev/null 2>&1 || true
-else
-  echo "Using cached $BASE"
-fi
+  sudo podman rmi -f localhost/machine-setup-sway-test "$IMAGE" "$UPSTREAM" "$BIB" >/dev/null 2>&1 || true
+}
 
 # ------------------------------------------------------------ VM
 qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$WORK/disk.qcow2"
@@ -206,8 +195,8 @@ if vm "cd ~/machine-setup && ./bootstrap.sh $BOOT_ARGS" 2>&1 | tee "$WORK/run1.l
 else
   fail "bootstrap.sh completed"
 fi
-if grep -q 'run ./bootstrap.sh again to finish' "$WORK/run1.log"; then
-  fail "run 1 applied packages live (it stopped to wait for a restart)"
+if grep -q 'Switching this machine' "$WORK/run1.log"; then
+  fail "bootstrap.sh saw the machine is already on the image"
 fi
 
 reboot_vm
@@ -225,17 +214,11 @@ else fail "dry run reports changed=0 failed=0"; fi
 
 log "Checking the result ($PROFILE profile)"
 check "nothing waiting for a restart"     'rpm-ostree status --json | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin)[\"deployments\"][0][\"booted\"] else 1)"'
-if [ "$BUILD_IMAGE" = 1 ]; then
-  check "packages come with the image (nothing layered)" 'rpm -q gh code ghostty tailscale wayvnc && ! rpm-ostree status --json | python3 -c "import json,sys; d=json.load(sys.stdin)[\"deployments\"][0]; sys.exit(1 if d.get(\"requested-packages\") else 0)"'
-else
-  check "packages layered with rpm-ostree" 'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty tailscale'
-fi
+check "packages come with the image (nothing layered)" 'rpm -q gh code ghostty tailscale wayvnc ansible-core && ! rpm-ostree status --json | python3 -c "import json,sys; d=json.load(sys.stdin)[\"deployments\"][0]; sys.exit(1 if d.get(\"requested-packages\") else 0)"'
 check "Firefox kept"                     'rpm -q firefox'
-check "GNOME add-ons skipped on Sway"     '! rpm -q gnome-shell-extension-appindicator && ! rpm -q gvfs-goa'
-check "no GNOME Remote Login on Sway"     '! systemctl is-active --quiet gnome-remote-desktop'
 check "wayvnc installed and configured"  'rpm -q wayvnc && grep -qx enable_pam=true .config/wayvnc/config && test -s .config/wayvnc/rsa_key.pem && test -f /etc/pam.d/wayvnc'
 check "wayvnc starts with Sway"          'test -L .config/systemd/user/graphical-session.target.wants/wayvnc.service'
-check "VNC open to Tailscale only (if firewalld runs)" '! systemctl is-active --quiet firewalld || { r=$(sudo firewall-cmd --list-rich-rules); echo "$r" | grep -q "100.64.0.0/10.*5900" && ! echo "$r" | grep -q "192.168.0.0/16"; }'
+check "VNC and SSH open to Tailscale only" 'sudo firewall-cmd --zone=tailscale --list-sources | grep -q 100.64.0.0/10 && sudo firewall-cmd --zone=tailscale --list-ports | grep -qw 5900/tcp && ! sudo firewall-cmd --list-ports | grep -qw 5900/tcp'
 check "podman runs a container"          'podman run --rm quay.io/podman/hello'
 check "Docker not installed"             '! rpm -q docker-ce'
 check "Tailscale running"                'systemctl is-active --quiet tailscaled'
@@ -255,7 +238,7 @@ if [ "$PROFILE" = server ]; then
   check "sshd enabled at boot"            'systemctl is-enabled --quiet sshd'
   check "SSH: root login off"             'sudo sshd -T | grep -qx "permitrootlogin no"'
   check "SSH: password login off"         'sudo sshd -T | grep -qx "passwordauthentication no"'
-  check "firewall only allows SSH"        '[ "$(sudo firewall-cmd --list-services | tr " " "\n" | sort | xargs)" = "dhcpv6-client ssh" ] && [ -z "$(sudo firewall-cmd --list-ports)" ]'
+  check "firewall only allows SSH"        '[ "$(sudo firewall-cmd --get-default-zone)" = server ] && [ "$(sudo firewall-cmd --list-services | tr " " "\n" | sort | xargs)" = "dhcpv6-client ssh" ] && [ -z "$(sudo firewall-cmd --list-ports)" ]'
   check "fail2ban guards SSH"             'sudo fail2ban-client status sshd'
   check "restarts into downloaded updates" 'systemctl is-enabled --quiet rpm-ostree-reboot.timer'
   check "logs in to Sway at boot, locked" 'grep -qx "User=tester" /etc/sddm.conf.d/50-machine-setup-autologin.conf && test -L .config/systemd/user/graphical-session.target.wants/swaylock-at-login.service'

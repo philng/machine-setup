@@ -1,10 +1,4 @@
 ---
-- name: Install flatpak
-  ansible.builtin.package:
-    name: flatpak
-    state: present
-  when: not ostree_booted | default(false)   # part of Fedora Atomic
-
 - name: Add Flathub remote
   community.general.flatpak_remote:
     name: "{{ flatpak_remote_name }}"

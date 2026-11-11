@@ -1,7 +1,0 @@
----
-# GNOME settings applied with dconf, as {key: value}. Values are GVariant
-# strings, so text values need inner single quotes.
-gnome_settings: {}
-# Extension UUIDs to enable (the extensions themselves are installed as
-# packages). Extensions you enabled yourself are kept.
-gnome_extensions: []

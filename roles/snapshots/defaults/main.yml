@@ -1,4 +1,0 @@
----
-snapshots_enabled: false
-# How many pre/post snapshot pairs to keep (oldest are cleaned up daily).
-snapshots_keep: 10

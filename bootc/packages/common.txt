@@ -1,0 +1,19 @@
+# Installed in every image (one package per line; # starts a comment).
+# The only package list for Linux: the playbook installs nothing with rpm.
+git
+ansible-core             # runs the playbook (bootstrap.sh)
+zsh
+vim-enhanced
+gh                       # GitHub CLI
+fzf
+bat
+btop
+eza
+git-delta                # nicer git diffs (configured by the git role)
+pciutils                 # lspci
+fontconfig               # fc-cache, used by the fonts role
+code                     # VS Code (Microsoft's repo; the Flatpak's sandbox gets in the way)
+ghostty                  # terminal (community COPR)
+tailscale
+wayvnc                   # remote desktop (VNC) for Sway
+intel-media-driver       # Intel hardware video decoding (RPM Fusion)

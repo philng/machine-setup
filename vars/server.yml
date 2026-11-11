@@ -1,86 +1,22 @@
-# Server profile (Fedora Server or Fedora Sway Atomic). Loaded over vars/apps.yml by
-#   ./bootstrap.sh --profile server [--gui | --headless]
+# Server profile, loaded over vars/apps.yml by ./bootstrap.sh --profile server.
+# Runs on the server image (ghcr.io/<owner>/machine-setup-sway:server), which
+# adds tmux and fail2ban, key-only SSH, a firewall that only lets SSH in
+# (remote desktop over Tailscale only) and restarts into updates at 4am.
 # Lists here replace the desktop ones. Anything not set here (zsh, vim, mise,
-# Claude Code, codecs, dotfiles, ...) comes from vars/apps.yml unchanged.
-# machine_gui is true for a server with a desktop (auto-detected, or --gui).
+# Claude Code, dotfiles, ...) comes from vars/apps.yml unchanged.
+# machine_gui is false with --headless: no Flatpaks, fonts, Toolbox or VNC.
 
-extra_repos: "{{ server_repos + (server_gui_repos if machine_gui | bool else []) }}"
-server_repos:
-  - rpmfusion              # codecs
-server_gui_repos:
-  - vscode
-  - ghostty
-
-packages: "{{ server_packages + (server_gui_packages if machine_gui | bool else []) }}"
-server_packages:
-  - git
-  - zsh
-  - vim
-  - gh
-  - tmux
-  - curl
-  - fzf
-  - bat
-  - btop
-  - eza
-  - git-delta
-  - pciutils
-  - podman
-  - firewalld
-  - fail2ban
-server_gui_packages:
-  - fontconfig
-  - code
-  - ghostty
-  - firefox                # Fedora's own build
-
-# GNOME add-ons (GNOME GUI servers only).
-gnome_packages:
-  - python3-psutil
-  - gnome-shell-extension-appindicator
-
-# Headless: nothing to remove. GUI: the same clean-up as the desktop
-# (only packages that are actually installed get removed).
-packages_remove: "{{ server_gui_packages_remove if machine_gui | bool else [] }}"
-server_gui_packages_remove:
-  - "chromium*"
-  - "libreoffice*"
-  - gnome-tour
-  - gnome-weather
-  - gnome-maps
-  - gnome-contacts
-  - gnome-characters
-  - yelp
-  - "rhythmbox*"
-  - totem
-  - showtime
-  - cheese
-  - snapshot
-  - simple-scan
-
-# Flatpaks (GUI only; the flatpak role is skipped on a headless server).
+# Flatpaks (GUI only).
 flatpaks:
   - com.google.Chrome
-flatpaks_remove:
-  - org.mozilla.firefox    # Firefox is the dnf package above; avoid a second copy
+flatpaks_remove: []
 
-# GUI-only extras (their roles are skipped on a headless server).
-remote_desktop_enabled: true   # GNOME Remote Login (RDP, 3389) or wayvnc on Sway (VNC, 5900)
-# Sway: log in automatically at boot and lock the screen straight away, so
+# GUI-only extras.
+remote_desktop_enabled: true   # wayvnc (VNC, port 5900, Tailscale only)
+# Log in to Sway automatically at boot and lock the screen straight away, so
 # there's a session for VNC to show (unlock it with your password).
 remote_desktop_autologin: true
 jetbrains_toolbox_enabled: true
 
-# All updates, not just security fixes, and reboot when an update needs it.
-auto_updates_type: default
-auto_updates_reboot: when-needed
-
-services_enabled: []
-user_groups: []
-
-# Hardening (roles/server).
-# Public keys allowed to log in (empty if github_user isn't set).
+# Public keys allowed to log in over SSH (empty if github_user isn't set).
 server_ssh_keys_url: "{{ 'https://github.com/' + github_user + '.keys' if github_user | default('') | length > 0 else '' }}"
-server_firewall_services:
-  - ssh
-  - dhcpv6-client          # keeps IPv6 addressing working

@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart into a downloaded update at 4am
+
+[Timer]
+OnCalendar=*-*-* 04:00
+
+[Install]
+WantedBy=timers.target

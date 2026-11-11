@@ -97,14 +97,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # From this repo's bootc image (bootc/Containerfile), as the
-          # machines run it.
-          - { profile: desktop, source: image, flags: --build-image }
-          - { profile: server, source: image, flags: --build-image }
-          # Plain Sway Atomic, where the playbook layers the packages itself.
-          - { profile: desktop, source: layered, flags: "" }
-    name: fedora-atomic-vm (${{ matrix.profile }}, ${{ matrix.source }})
+        profile: [desktop, server]
+    name: fedora-atomic-vm (${{ matrix.profile }})
     steps:
       - uses: actions/checkout@v4
 
@@ -128,7 +122,7 @@ jobs:
 
       - name: Run VM test
         run: >-
-          tests/atomic-vm-test.sh --profile ${{ matrix.profile }} ${{ matrix.flags }}
+          tests/atomic-vm-test.sh --profile ${{ matrix.profile }}
           --github-user ${{ github.repository_owner }}
           --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }}
 
@@ -136,7 +130,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: atomic-vm-test-logs-${{ matrix.profile }}-${{ matrix.source }}
+          name: atomic-vm-test-logs-${{ matrix.profile }}
           path: ~/.cache/machine-setup-vm/logs/
           if-no-files-found: ignore
 

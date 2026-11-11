@@ -3,32 +3,7 @@
 # screen: log in on the machine first). Connect with TigerVNC Viewer to
 # <machine>:5900 and log in with your Linux user name and password. The
 # connection is encrypted (RSA-AES, which TigerVNC supports) and only
-# reachable over Tailscale (remote_desktop_allowed_sources).
-- name: Install wayvnc
-  ansible.builtin.dnf:
-    name: wayvnc
-    state: present
-  when: not ostree_booted | default(false)
-
-- name: Layer wayvnc (Fedora Atomic)
-  ansible.builtin.include_role:
-    name: rpm_ostree
-    tasks_from: install
-  vars:
-    rpm_ostree_install: [wayvnc]
-  when: ostree_booted | default(false)
-
-# wayvnc checks the password with PAM as your own user, so only you can log in.
-- name: PAM settings for wayvnc logins
-  ansible.builtin.copy:
-    dest: /etc/pam.d/wayvnc
-    force: false
-    mode: "0644"
-    content: |
-      #%PAM-1.0
-      auth       include      system-auth
-      account    include      system-auth
-
+# reachable over Tailscale (the image's firewall).
 - name: Configure wayvnc for {{ target_user }}
   become: "{{ use_sudo }}"
   become_user: "{{ target_user }}"

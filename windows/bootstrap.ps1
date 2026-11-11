@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   Installs apps with winget, removes preinstalled apps, turns on dark mode,
-  installs Claude Code and mise (+ uv), and can optionally install WSL so the
-  Ansible playbook can set up a Linux shell too. Safe to re-run: anything
+  installs Claude Code and mise (+ uv), and can optionally install WSL with
+  Fedora. Safe to re-run: anything
   already installed or already removed is skipped.
 
   Run from a normal (non-admin) PowerShell window:
@@ -238,7 +238,7 @@ if ($WithWsl) {
         Write-Skip 'already installed'
     } else {
         wsl --install -d $WslDistro
-        Write-Warn 'Reboot if asked, open Fedora from the Start menu, then run ./bootstrap.sh from this repo inside it.'
+        Write-Warn 'Reboot if asked, then open Fedora from the Start menu.'
     }
 }
 

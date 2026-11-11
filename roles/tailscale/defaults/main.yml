@@ -1,5 +1,4 @@
 ---
-tailscale_enabled: false
 # Optional auth key (https://login.tailscale.com/admin/settings/keys) to join
 # your tailnet without a browser. Keep it in vars/local.yml (not committed).
 # Without one, run `sudo tailscale up` once and open the link it prints.
