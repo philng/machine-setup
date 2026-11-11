@@ -1,7 +1,7 @@
 # machine-setup
 
-Ansible playbook that installs my apps on a fresh machine. Built for Fedora,
-also works on Debian/Ubuntu and macOS. Safe to re-run: a second run changes nothing.
+Ansible playbook that installs my apps on a fresh machine. Built for Fedora
+(including Fedora Atomic, such as Sway Atomic), also works on Debian/Ubuntu and macOS. Safe to re-run: a second run changes nothing.
 
 | | Linux (Fedora, Debian/Ubuntu) | macOS |
 |---|---|---|
@@ -60,6 +60,33 @@ after every `dnf` transaction, including the automatic updates, keeping the last
 sudo snapper -c root list                    # find the pre/post pair
 sudo snapper -c root undochange 42..43       # put files back as they were at 42
 ```
+
+## Fedora Atomic (Sway Atomic, Silverblue, ...)
+
+`bootstrap.sh` works the same way. Because `/usr` is read-only, the packages
+are layered with `rpm-ostree` instead of installed with dnf, and applied live, so
+they work straight away. What's different:
+
+- **Removing preinstalled apps** (Firefox and the rest of `packages_remove`) uses
+  `rpm-ostree override remove` and takes effect after a restart. The run ends
+  with a reminder to restart.
+- **If an update is already waiting for a restart**, new packages can't be
+  applied live. They're queued for the next boot, and the run stops with a note
+  to restart and run `./bootstrap.sh` again.
+- **Updates:** the whole image updates at once, downloaded in the background
+  and used from the next boot (`rpm-ostreed-automatic`). There's no
+  security-only option.
+- **Snapshots** are skipped: Atomic keeps the previous version, so
+  `rpm-ostree rollback` undoes a bad update.
+- **Codecs:** the image's ffmpeg is left alone, since the media apps are
+  Flatpaks with their own codecs. Intel and NVIDIA drivers are layered from RPM
+  Fusion; AMD hardware decoding is a printed command to run by hand.
+- **Sway and other non-GNOME desktops** skip the GNOME parts: settings, tray
+  icon extension, Google Drive in Files, and GNOME Remote Login.
+- The server profile is for Fedora Server only.
+
+To undo a layered package: `sudo rpm-ostree uninstall <name>`. To put back a
+removed one: `sudo rpm-ostree override reset <name>`.
 
 ## Making it yours
 
@@ -207,8 +234,10 @@ roles/ghostty         starter Ghostty config
 roles/fonts           Nerd Fonts (Linux)
 roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
+roles/rpm_ostree      package layering and removals on Fedora Atomic
 bootstrap.sh          first-run installer
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
+tests/atomic-vm-test.sh  the same in a throwaway Fedora Sway Atomic VM
 tests/mac-test.sh     the macOS checks (CI runner or tests/mac-vm-test.sh)
 ```
 
@@ -229,6 +258,11 @@ copies this working tree in (uncommitted changes included), runs `./bootstrap.sh
 runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
 removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
 Needs a Linux x86_64 host with KVM.
+
+For Fedora Sway Atomic, `tests/atomic-vm-test.sh` (also needs `podman`) builds
+a VM disk from Fedora's Sway Atomic image once with bootc-image-builder, then
+runs `./bootstrap.sh`, restarts the VM, and expects a second run to change
+nothing. `--image` tests another Atomic desktop, such as Silverblue.
 
 ### On a Mac (Apple Silicon)
 
@@ -254,6 +288,7 @@ Actions tab for any branch (optionally with a dotfiles branch to test). After
 
 - the Fedora VM test for the desktop and the headless server profile, each with
   the repo owner's dotfiles;
+- the Fedora Sway Atomic VM test;
 - `tests/mac-test.sh` on a macOS runner;
 - a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.
 

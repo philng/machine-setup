@@ -1,5 +1,6 @@
 ---
 packages: []
+gnome_packages: []
 packages_remove: []
 services_enabled: []
 user_groups: []

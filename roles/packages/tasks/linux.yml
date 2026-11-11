@@ -9,14 +9,30 @@
   ansible.builtin.package:
     name: "{{ packages_resolved }}"
     state: present
-  when: packages_resolved | length > 0
+  when:
+    - packages_resolved | length > 0
+    - not ostree_booted | default(false)
+
+# Fedora Atomic: layered with rpm-ostree. (Unwanted apps are removed by the
+# rpm_ostree role at the end of the run.)
+- name: Layer packages (Fedora Atomic)
+  ansible.builtin.include_role:
+    name: rpm_ostree
+    tasks_from: install
+  vars:
+    rpm_ostree_install: "{{ packages_resolved }}"
+  when:
+    - packages_resolved | length > 0
+    - ostree_booted | default(false)
 
 # Only ask the package manager to remove what is actually installed, so
 # names that don't exist on this distro are harmless. Shell-style globs like
 # "libreoffice*" are expanded against the installed package list.
 - name: Gather installed packages
   ansible.builtin.package_facts:
-  when: packages_remove_resolved | length > 0
+  when:
+    - packages_remove_resolved | length > 0
+    - not ostree_booted | default(false)
 
 - name: Work out which unwanted packages are installed
   ansible.builtin.set_fact:
@@ -26,6 +42,7 @@
             | select('match', '^' + glob_regex + '$')
             | list) }}
   loop: "{{ packages_remove_resolved }}"
+  when: not ostree_booted | default(false)
   vars:
     # Package names only use letters, digits and . + - _ so this is enough
     # to turn a glob into a regex.
@@ -57,6 +74,18 @@
     enabled: true
     state: started
   loop: "{{ services_enabled }}"
+
+# On Fedora Atomic, groups from layered packages (e.g. docker) live in
+# /usr/lib/group, which usermod doesn't read; copy them into /etc/group.
+- name: Copy package groups into /etc/group (Fedora Atomic)
+  ansible.builtin.shell: >-
+    grep -q '^{{ item }}:' /etc/group && exit 0;
+    line=$(grep '^{{ item }}:' /usr/lib/group) || exit 0;
+    echo "$line" >> /etc/group && echo added
+  register: group_copied
+  changed_when: "'added' in group_copied.stdout"
+  loop: "{{ user_groups }}"
+  when: ostree_booted | default(false)
 
 - name: Add extra groups for {{ target_user }}
   ansible.builtin.user:

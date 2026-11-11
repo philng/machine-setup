@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fresh-machine setup for Fedora, Debian/Ubuntu or macOS.
+# Fresh-machine setup for Fedora (including Atomic), Debian/Ubuntu or macOS.
 #   ./bootstrap.sh                 # from a checkout of this repo
 #   REPO_URL=https://github.com/<you>/machine-setup.git bash <(curl -fsSL <raw URL of this file>)
 #   ./bootstrap.sh --profile server [--gui | --headless]   # Fedora Server
@@ -46,6 +46,19 @@ if [ "$OS" = "Darwin" ]; then
     [ -x "$b" ] && eval "$("$b" shellenv)" && break
   done
   brew install git ansible
+elif [ -e /run/ostree-booted ]; then
+  # Fedora Atomic (Silverblue, Sway Atomic, ...): /usr is read-only, so layer
+  # Ansible with rpm-ostree and apply it live (no restart needed).
+  need=()
+  command -v git >/dev/null 2>&1 || need+=(git)
+  command -v ansible-playbook >/dev/null 2>&1 || need+=(ansible-core)
+  if [ ${#need[@]} -gt 0 ]; then
+    if ! sudo rpm-ostree install -y --idempotent --apply-live "${need[@]}"; then
+      echo "Couldn't install Ansible live (an update is probably waiting for a restart)." >&2
+      echo "Restart (systemctl reboot) and run this again." >&2
+      exit 1
+    fi
+  fi
 elif command -v dnf >/dev/null 2>&1; then
   # python3-libdnf5 lets Ansible drive dnf5 (Fedora 41+).
   sudo dnf install -y git ansible-core python3-libdnf5
@@ -217,4 +230,11 @@ else
   - Sign in to Tailscale: `sudo tailscale up` on Linux, or open the Tailscale app.
   - NVIDIA only: if the playbook printed MOK steps, reboot and enroll the key.
 DONE
+  if [ -e /run/ostree-booted ]; then
+    cat <<'DONE'
+  - Fedora Atomic: restart (systemctl reboot) to finish removing preinstalled
+    apps. If the playbook stopped early to wait for a restart, run
+    ./bootstrap.sh again afterwards.
+DONE
+  fi
 fi

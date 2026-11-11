@@ -1,0 +1,5 @@
+---
+# Packages to layer (tasks_from: install). Names, or URLs of RPMs.
+rpm_ostree_install: []
+# Base-image packages to remove (main tasks). Globs like "foo*" work.
+rpm_ostree_remove: []

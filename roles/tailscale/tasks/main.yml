@@ -27,6 +27,15 @@
     name: tailscale
     state: present
     update_cache: "{{ tailscale_repo is changed }}"
+  when: not ostree_booted | default(false)
+
+- name: Layer Tailscale (Fedora Atomic)
+  ansible.builtin.include_role:
+    name: rpm_ostree
+    tasks_from: install
+  vars:
+    rpm_ostree_install: [tailscale]
+  when: ostree_booted | default(false)
 
 - name: Start tailscaled
   ansible.builtin.systemd_service:

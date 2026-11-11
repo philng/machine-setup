@@ -31,10 +31,37 @@
         quiet: true
       tags: always
 
+    # Fedora Atomic (Silverblue, Sway Atomic, ...) has a read-only /usr:
+    # packages are layered with rpm-ostree instead of installed with dnf.
+    - name: Check for Fedora Atomic
+      ansible.builtin.stat:
+        path: /run/ostree-booted
+      register: ostree_booted_file
+      tags: always
+
+    - name: Note whether this is Fedora Atomic
+      ansible.builtin.set_fact:
+        ostree_booted: "{{ ostree_booted_file.stat.exists }}"
+      tags: always
+
+    - name: Check the server profile isn't used on Fedora Atomic
+      ansible.builtin.assert:
+        that: profile == 'desktop' or not ostree_booted
+        fail_msg: "The server profile is for Fedora Server; use the desktop profile on Fedora Atomic."
+        quiet: true
+      tags: always
+
     - name: Check for a desktop
       ansible.builtin.stat:
         path: /usr/bin/gnome-shell
       register: gnome_shell
+      tags: always
+
+    - name: Check for other desktops (Sway, KDE)
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: [/usr/bin/sway, /usr/bin/startplasma-wayland]
+      register: other_desktops
       tags: always
 
     # Desktops always have a GUI. Servers: --gui/--headless, else auto-detect.
@@ -43,6 +70,11 @@
         machine_gui: >-
           {{ true if profile == 'desktop' or ansible_facts.os_family == 'Darwin'
              else (machine_gui | bool if machine_gui is defined else gnome_shell.stat.exists) }}
+        # GNOME-only parts (Remote Login, tray icons, Google Drive in Files)
+        # are skipped on other desktops such as Sway.
+        non_gnome_desktop: >-
+          {{ not gnome_shell.stat.exists
+             and other_desktops.results | selectattr('stat.exists') | list | length > 0 }}
       tags: always
 
     - name: Load the server profile
@@ -60,7 +92,7 @@
     - name: Show detected OS and profile
       ansible.builtin.debug:
         msg: >-
-          {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }} ({{ ansible_facts.os_family }}),
+          {{ ansible_facts.distribution }} {{ 'Atomic ' if ostree_booted else '' }}{{ ansible_facts.distribution_version }} ({{ ansible_facts.os_family }}),
           {{ profile }} profile, {{ 'GUI' if machine_gui | bool else 'headless' }}
       tags: always
 
@@ -73,6 +105,7 @@
       tags: snapshots
       when:
         - ansible_facts.distribution == 'Fedora'
+        - not ostree_booted       # Atomic already keeps the previous version (rpm-ostree rollback)
         - snapshots_enabled | bool
     - role: packages      # dnf/apt on Linux, Homebrew formulae on macOS
       become: "{{ use_sudo }}"
@@ -100,6 +133,7 @@
         - ansible_facts.os_family == 'RedHat'
         - remote_desktop_enabled | bool
         - machine_gui | bool
+        - not non_gnome_desktop | bool
     - role: jetbrains_toolbox   # JetBrains Toolbox from jetbrains.com (Linux)
       tags: jetbrains
       when:
@@ -149,6 +183,7 @@
       when:
         - ansible_facts.os_family != 'Darwin'
         - machine_gui | bool
+        - not non_gnome_desktop | bool
     - role: git_setup     # ~/.gitconfig, delta, gh logins, SSH key
       tags: git
     - role: zsh           # antidote + zsh as login shell (after dotfiles)
@@ -158,3 +193,9 @@
       become: "{{ use_sudo }}"
       tags: server
       when: profile == 'server'
+    - role: rpm_ostree    # Fedora Atomic: remove unwanted apps from the image (last:
+      become: "{{ use_sudo }}"   # takes effect after a restart)
+      tags: packages
+      when: ostree_booted | bool
+      vars:
+        rpm_ostree_remove: "{{ packages_remove }}"

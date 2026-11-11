@@ -2,23 +2,50 @@
 # Fedora (and other dnf-based distros where the URLs fit).
 
 - name: RPM Fusion free and nonfree
-  ansible.builtin.dnf:
-    name:
-      - "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
-      - "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
-    state: present
-    # The release RPMs install RPM Fusion's signing keys, so they can't be
-    # verified before they're installed. They're fetched over HTTPS.
-    disable_gpg_check: true
   when:
     - "'rpmfusion' in extra_repos"
     - ansible_facts.distribution == 'Fedora'
+  vars:
+    rpmfusion_release_rpms:
+      - "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
+      - "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts.distribution_major_version }}.noarch.rpm"
+  block:
+    - name: Install the RPM Fusion repos
+      ansible.builtin.dnf:
+        name: "{{ rpmfusion_release_rpms }}"
+        state: present
+        # The release RPMs install RPM Fusion's signing keys, so they can't be
+        # verified before they're installed. They're fetched over HTTPS.
+        disable_gpg_check: true
+      when: not ostree_booted | default(false)
 
+    - name: Check for the RPM Fusion repos (Fedora Atomic)  # noqa: command-instead-of-module
+      ansible.builtin.command: rpm -q rpmfusion-free-release rpmfusion-nonfree-release
+      register: rpmfusion_installed
+      changed_when: false
+      failed_when: false
+      check_mode: false   # read-only; also runs in --dry-run
+      when: ostree_booted | default(false)
+
+    - name: Layer the RPM Fusion repos (Fedora Atomic)
+      ansible.builtin.include_role:
+        name: rpm_ostree
+        tasks_from: install
+      vars:
+        rpm_ostree_install: "{{ rpmfusion_release_rpms }}"
+      when:
+        - ostree_booted | default(false)
+        - rpmfusion_installed.rc != 0
+
+# (Fedora Atomic can't import keys into its read-only rpm database;
+# rpm-ostree uses the gpgkey from the repo file instead.)
 - name: VS Code signing key
   ansible.builtin.rpm_key:
     key: https://packages.microsoft.com/keys/microsoft.asc
     state: present
-  when: "'vscode' in extra_repos"
+  when:
+    - "'vscode' in extra_repos"
+    - not ostree_booted | default(false)
 
 - name: VS Code repo
   ansible.builtin.yum_repository:
@@ -33,7 +60,9 @@
   ansible.builtin.rpm_key:
     key: https://download.docker.com/linux/fedora/gpg
     state: present
-  when: "'docker' in extra_repos"
+  when:
+    - "'docker' in extra_repos"
+    - not ostree_booted | default(false)
 
 - name: Docker CE repo
   ansible.builtin.yum_repository:

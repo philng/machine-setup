@@ -4,6 +4,8 @@
 # The one file you normally edit.
 #
 # Linux (Fedora, Debian/Ubuntu): CLI tools come from dnf/apt, GUI apps from Flathub.
+# Fedora Atomic (Silverblue, Sway Atomic, ...): the same packages are layered
+# with rpm-ostree; some changes then need a restart.
 # macOS: CLI tools are Homebrew formulae, GUI apps are Homebrew casks.
 
 # ---------------------------------------------------------------- Linux repos
@@ -30,11 +32,6 @@ packages:
   - fontconfig             # fc-cache, used by the fonts role
   - git-delta              # nicer git diffs (configured by the git role)
   - pciutils               # lspci, used to detect GPUs
-  - python3-psutil         # needed to change GNOME settings
-  - gnome-shell-extension-appindicator   # tray icons in the top bar
-  # Google Drive in Files on Linux (no official Linux client): sign in under
-  # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
-  - gvfs-goa
   - podman
   # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
   # sandbox gets in the way of terminals, SDKs and language servers.
@@ -48,8 +45,17 @@ packages:
   - docker-buildx-plugin
   - docker-compose-plugin
 
+# GNOME add-ons, skipped on other desktops (Sway, KDE) and on macOS.
+gnome_packages:
+  - python3-psutil         # needed to change GNOME settings
+  - gnome-shell-extension-appindicator   # tray icons in the top bar
+  # Google Drive in Files on Linux (no official Linux client): sign in under
+  # Settings > Online Accounts > Google. On macOS it's the google-drive cask.
+  - gvfs-goa
+
 # Native packages to make sure are NOT installed. Globs like "foo*" work.
 # Only installed ones are touched, so Linux-only names are harmless on macOS.
+# On Fedora Atomic they're removed from the image with rpm-ostree.
 packages_remove:
   # Use a trailing * to include add-on packages (e.g. firefox-langpacks):
   # removal stops with an error rather than silently removing other
@@ -82,9 +88,6 @@ package_name_map:
     zsh: ""
     fontconfig: ""
     pciutils: ""
-    python3-psutil: ""
-    gnome-shell-extension-appindicator: ""
-    gvfs-goa: ""
     code: ""
     ghostty: ""
     docker-ce: ""

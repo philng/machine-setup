@@ -1,10 +1,12 @@
 ---
 - name: Translate generic package names for {{ ansible_facts.os_family }}
   ansible.builtin.set_fact:
-    packages_resolved: "{{ packages | map('extract', dict(packages | zip(packages)) | combine(name_map)) | select | list }}"
+    packages_resolved: "{{ all_packages | map('extract', dict(all_packages | zip(all_packages)) | combine(name_map)) | select | list }}"
     packages_remove_resolved: "{{ packages_remove | map('extract', dict(packages_remove | zip(packages_remove)) | combine(name_map)) | select | list }}"
   vars:
     name_map: "{{ package_name_map[ansible_facts.os_family] | default({}) }}"
+    # GNOME add-ons are skipped on other desktops (Sway, KDE).
+    all_packages: "{{ packages + ([] if non_gnome_desktop | default(false) | bool or ansible_facts.os_family == 'Darwin' else gnome_packages) }}"
 
 - name: Install packages with Homebrew
   ansible.builtin.include_tasks: Darwin.yml
