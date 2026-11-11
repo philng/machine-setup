@@ -76,7 +76,7 @@ cd "$DEST"
 # The image (bootc/) brings the packages and system settings. Its address
 # comes from this checkout's GitHub owner, or MACHINE_SETUP_IMAGE.
 if [ "$OS" != Darwin ]; then
-  owner="$(git remote get-url origin 2>/dev/null | sed -nE 's#.*github\.com[:/]([^/]+)/.*#\1#p' | tr '[:upper:]' '[:lower:]')"
+  owner="$(git remote get-url origin 2>/dev/null | sed -nE 's#.*github\.com[:/]([^/]+)/.*#\1#p' | tr "[:upper:]" "[:lower:]" || true)"
   IMAGE="${MACHINE_SETUP_IMAGE:-ghcr.io/$owner/machine-setup-sway}"
   # NVIDIA graphics (PCI vendor 10de, display class 03xx) get the image with
   # NVIDIA's driver built in.
