@@ -37,6 +37,16 @@ RUN set -eux; \
     dnf clean all; \
     rm -rf /var/cache/* /var/lib/dnf /var/log/*
 
+# Image signing: with IMAGE_REPO set (the workflow sets it) and bootc/cosign.pub
+# committed, machines only accept updates signed with that key.
+ARG IMAGE_REPO=
+COPY bootc/ /tmp/bootc-src/
+RUN set -eux; \
+    if [ -n "$IMAGE_REPO" ] && [ -f /tmp/bootc-src/cosign.pub ]; then \
+      sh /tmp/bootc-src/signing.sh "$IMAGE_REPO" /tmp/bootc-src/cosign.pub; \
+    fi; \
+    rm -rf /tmp/bootc-src
+
 COPY bootc/nvidia.sh /tmp/nvidia.sh
 COPY bootc/nvidia/ /tmp/nvidia-files/
 RUN set -eux; \

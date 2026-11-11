@@ -2,11 +2,11 @@ name: Image
 
 # Builds the Sway Atomic bootc images (bootc/Containerfile) and pushes them to
 #   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
-# For Secure Boot on the NVIDIA image, add the repository secrets AKMODS_KEY
-# (PEM private key) and AKMODS_CERT (base64 of the DER certificate); see
-# bootc/nvidia.sh.
 # weekly (to pick up Fedora's updates), when bootc/ changes on main, and by
 # hand. (Pull requests test them in test.yml: a VM built from the image.)
+# Optional repository secrets:
+#   AKMODS_KEY, AKMODS_CERT   sign the NVIDIA driver for Secure Boot (bootc/nvidia.sh)
+#   COSIGN_PRIVATE_KEY, COSIGN_PASSWORD   sign the images (public key: bootc/cosign.pub)
 on:
   push:
     branches: [main]
@@ -41,6 +41,20 @@ jobs:
       - name: Free disk space
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
 
+      - name: Check for a signing key
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+        run: |
+          if [ -n "$COSIGN_PRIVATE_KEY" ] && [ -f bootc/cosign.pub ]; then
+            echo SIGN=true >> "$GITHUB_ENV"
+          elif [ -f bootc/cosign.pub ]; then
+            # The image would tell machines to require signatures it doesn't have.
+            echo "::error::bootc/cosign.pub is committed but the COSIGN_PRIVATE_KEY secret is missing."
+            exit 1
+          else
+            echo "::warning::Images are not signed: add the COSIGN_PRIVATE_KEY secret and commit bootc/cosign.pub."
+          fi
+
       - name: Build
         env:
           AKMODS_KEY: ${{ secrets.AKMODS_KEY }}
@@ -58,6 +72,7 @@ jobs:
           printf 'IMAGE=%s\nDATE=%s\n' "$IMAGE" "$DATE" >> "$GITHUB_ENV"
           sudo podman build --pull=newer -f bootc/Containerfile \
             --build-arg PROFILE=${{ matrix.profile }} --build-arg NVIDIA=${{ matrix.nvidia }} \
+            --build-arg IMAGE_REPO="$IMAGE" \
             ${secrets[@]+"${secrets[@]}"} \
             -t "$IMAGE:${{ matrix.tag }}" \
             -t "$IMAGE:${{ matrix.tag }}-$DATE" .
@@ -68,5 +83,22 @@ jobs:
           TOKEN: ${{ github.token }}
         run: |
           echo "$TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          sudo podman push "$IMAGE:${{ matrix.tag }}"
+          sudo podman push --digestfile "$RUNNER_TEMP/digest" "$IMAGE:${{ matrix.tag }}"
           sudo podman push "$IMAGE:${{ matrix.tag }}-$DATE"
+          echo "DIGEST=$(cat "$RUNNER_TEMP/digest")" >> "$GITHUB_ENV"
+
+      - name: Install cosign
+        if: env.SIGN == 'true'
+        uses: sigstore/cosign-installer@v3
+
+      # Signs the pushed image (both tags share the digest). Machines check
+      # this with bootc/cosign.pub.
+      - name: Sign
+        if: env.SIGN == 'true'
+        env:
+          TOKEN: ${{ github.token }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          echo "$TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$IMAGE@$DIGEST"

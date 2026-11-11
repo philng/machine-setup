@@ -91,7 +91,9 @@ if [ "$BUILD_IMAGE" = 1 ]; then
   log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
   IMAGE="localhost/machine-setup-sway:$PROFILE"
   sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
-    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" -t "$IMAGE" "$REPO_DIR"
+    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
+    --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
+    -t "$IMAGE" "$REPO_DIR"
   BASE="$WORK/image-base.qcow2"   # always fresh: it's built from this working tree
 fi
 

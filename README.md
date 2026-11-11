@@ -130,6 +130,28 @@ sudo mokutil --import /etc/pki/akmods/certs/public_key.der
 Then keep `akmods.key` somewhere safe and off the machine. Without the secrets,
 the image still builds but the driver only loads with Secure Boot off.
 
+**Signed images.** To have machines refuse any image that isn't signed by
+you, create a signing key once (on a machine with `cosign` and `gh`):
+
+```sh
+cosign generate-key-pair            # asks for a password; writes cosign.key and cosign.pub
+gh secret set COSIGN_PRIVATE_KEY -R <owner>/machine-setup < cosign.key
+gh secret set COSIGN_PASSWORD -R <owner>/machine-setup      # the password you chose
+cp cosign.pub ~/machine-setup/bootc/cosign.pub              # commit and push this one
+```
+
+Keep `cosign.key` in your password manager and delete the local copy. Builds
+then sign every image, and the image itself carries the public key and a rule
+requiring that signature. After a machine is on an image built with the key,
+switch it to checking signatures (once):
+
+```sh
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/<owner>/machine-setup-sway:desktop
+```
+
+Signing protects against a tampered image or registry, not against someone
+who can push to your repo's `main`: keep 2FA on your GitHub account.
+
 The playbook finds the packages already installed and layers nothing. Packages
 layered earlier stay layered (`rpm-ostree status` lists them; `sudo rpm-ostree
 uninstall <name>` drops ones the image now has). Keep the image's package list
