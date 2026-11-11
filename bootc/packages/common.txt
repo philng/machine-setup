@@ -11,7 +11,7 @@ btop
 eza
 git-delta                # nicer git diffs (configured by the git role)
 pciutils                 # lspci
-fontconfig               # fc-cache, used by the fonts role
+fontconfig               # fc-cache, fc-list
 code                     # VS Code (Microsoft's repo; the Flatpak's sandbox gets in the way)
 ghostty                  # terminal (community COPR)
 tailscale

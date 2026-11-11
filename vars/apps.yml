@@ -106,11 +106,8 @@ mise_global_tools:
 claude_code_enabled: true
 
 # ------------------------------------------------------------------- Fonts
-# Nerd Fonts for Linux, installed into ~/.local/share/fonts. Names are the
-# archive names on github.com/ryanoasis/nerd-fonts/releases. On macOS add
-# the font-*-nerd-font cask instead.
-nerd_fonts:
-  - JetBrainsMono
+# Linux: Nerd Fonts are built into the image (bootc/fonts.txt).
+# macOS: the font-*-nerd-font casks above.
 
 # ------------------------------------------------------------------- Shell
 # zsh as your login shell, with the antidote plugin manager. Creates a

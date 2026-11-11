@@ -232,7 +232,7 @@ check "mise and uv installed"            '.local/bin/mise --version && .local/bi
 check "fzf, bat, btop and eza installed"  'command -v fzf && command -v bat && command -v btop && command -v eza'
 check "git uses delta"                   '[ "$(git config --global core.pager)" = delta ] && command -v delta'
 check "Chrome Flatpak installed"         'flatpak info com.google.Chrome'
-check "JetBrains Mono Nerd Font installed" 'fc-list | grep -qi "JetBrainsMono Nerd Font"'
+check "JetBrains Mono Nerd Font built into the image" 'fc-list | grep -i "JetBrainsMono Nerd Font" | grep -q ^/usr/share/fonts/nerd-fonts/'
 check "automatic image updates staged"   'grep -qx "AutomaticUpdatePolicy=stage" /etc/rpm-ostreed.conf && systemctl is-enabled --quiet rpm-ostreed-automatic.timer'
 check "Flatpak update timer enabled"     'systemctl is-enabled --quiet flatpak-update.timer'
 if [ "$PROFILE" = server ]; then
