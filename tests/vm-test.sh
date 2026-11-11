@@ -19,7 +19,7 @@
 #      Firefox, which must be kept).
 #   4. Copies THIS working tree (including uncommitted changes) into the VM and runs
 #      ./bootstrap.sh, then runs the playbook a second time and expects changed=0.
-#   5. Checks the results (Flatpaks, removals, podman, docker) and prints PASS/FAIL.
+#   5. Checks the results (Flatpaks, removals, podman, ...) and prints PASS/FAIL.
 #   6. Shuts the VM down and deletes its disk (unless --keep).
 #
 # Needs (Fedora host): sudo dnf install -y qemu-kvm qemu-img xorriso openssh-clients curl
@@ -242,13 +242,10 @@ else
   fail "dry run reports changed=0 failed=0"
 fi
 
-# A new ssh session so the new docker group membership applies.
 log "Checking the result ($PROFILE profile)"
 # Every profile.
 check "podman runs a container"         'podman run --rm quay.io/podman/hello'
-check "docker service is running"       'systemctl is-active --quiet docker'
-check "user is in the docker group"     'id -nG | grep -qw docker'
-check "docker runs a container (no sudo)" 'docker run --rm hello-world'
+check "Docker not installed"            '! rpm -q docker-ce'
 check "zsh is the login shell"           'getent passwd tester | grep -q "/zsh$"'
 check "antidote loads in zsh"            'zsh -ic "type antidote"'
 check "Claude Code installed"            'test -x .local/bin/claude && .local/bin/claude --version'

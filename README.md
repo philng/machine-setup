@@ -7,7 +7,7 @@ Ansible playbook that installs my apps on a fresh machine. Built for Fedora
 |---|---|---|
 | CLI tools | dnf / apt | Homebrew formulae |
 | GUI apps | Flatpak from Flathub | Homebrew casks |
-| Extra sources | RPM Fusion, VS Code, Docker repos | Homebrew taps |
+| Extra sources | RPM Fusion, VS Code, Ghostty repos | Homebrew taps |
 
 ## Fresh machine
 
@@ -110,7 +110,7 @@ without the personal bits (no Spotify/VLC/Steam, no git name/email prompt, no Gi
 sign-in):
 
 - **Every server:** Tailscale, git, gh, vim, tmux, btop, curl, fzf, bat, eza, delta,
-  zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Docker and Podman,
+  zsh + antidote, Claude Code, mise + uv, codecs, dotfiles, Podman,
   and full automatic updates that reboot when an update needs it.
 - **GUI server** adds VS Code, JetBrains Toolbox, Ghostty, the Nerd Font,
   GNOME Remote Login over RDP, Chrome and Firefox (Fedora's package), and the GNOME clean-up and dark mode.
@@ -154,7 +154,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   else, add it to `package_name_map` (map to `""` to skip it on that OS).
 - `flatpaks` – Flathub app IDs (Linux GUI apps).
 - `casks` – Homebrew casks (macOS GUI apps).
-- `extra_repos` – `rpmfusion`, `vscode`, `docker` (Linux). `homebrew_taps` on macOS.
+- `extra_repos` – `rpmfusion`, `vscode`, `ghostty`, `docker` (Linux; Docker's repo isn't enabled by default). `homebrew_taps` on macOS.
 - `mac_apps_remove` – paths of preinstalled Apple apps to delete on macOS (GarageBand, iMovie, iWork).
   If macOS says "Operation not permitted", give your terminal App Management access in
   System Settings → Privacy & Security, then re-run.
@@ -193,7 +193,7 @@ Edit **`vars/apps.yml`**. That's the only file you normally touch.
   unattended-upgrades, plus a weekly Flatpak update timer.
 - `multimedia_enabled` – full ffmpeg/GStreamer codecs from RPM Fusion and GPU drivers (Intel/AMD
   video decoding, NVIDIA driver). With Secure Boot, NVIDIA needs a one-time key enrollment.
-- `services_enabled`, `user_groups` – e.g. `docker` (Linux).
+- `services_enabled`, `user_groups` – systemd services to start and groups to add you to (Linux).
 - `dotfiles_enabled`, `dotfiles_repo`, `dotfiles_version` – clone your dotfiles and link
   `home/` into `~` (see Dotfiles above).
 - `snapshots_enabled` – snapper snapshots before/after every dnf transaction (Fedora, btrfs).
@@ -261,7 +261,7 @@ tests/vm-test.sh            # add --keep to poke around afterwards
 It boots a fresh Fedora Cloud VM, pre-installs Firefox (which must be kept), Chromium and LibreOffice,
 copies this working tree in (uncommitted changes included), runs `./bootstrap.sh`,
 runs the playbook again expecting `changed=0`, then checks the Flatpaks, the
-removals, podman and docker, and prints PASS/FAIL. The VM is deleted afterwards.
+removals and podman, and prints PASS/FAIL. The VM is deleted afterwards.
 Needs a Linux x86_64 host with KVM.
 
 For Fedora Sway Atomic, `tests/atomic-vm-test.sh` (also needs `podman`) builds

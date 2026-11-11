@@ -6,7 +6,6 @@
 
 extra_repos: "{{ server_repos + (server_gui_repos if machine_gui | bool else []) }}"
 server_repos:
-  - docker
   - rpmfusion              # codecs
 server_gui_repos:
   - vscode
@@ -27,11 +26,6 @@ server_packages:
   - git-delta
   - pciutils
   - podman
-  - docker-ce
-  - docker-ce-cli
-  - containerd.io
-  - docker-buildx-plugin
-  - docker-compose-plugin
   - firewalld
   - fail2ban
 server_gui_packages:
@@ -75,10 +69,8 @@ jetbrains_toolbox_enabled: true
 auto_updates_type: default
 auto_updates_reboot: when-needed
 
-services_enabled:
-  - docker
-user_groups:
-  - docker
+services_enabled: []
+user_groups: []
 
 # Hardening (roles/server).
 # Public keys allowed to log in (empty if github_user isn't set).

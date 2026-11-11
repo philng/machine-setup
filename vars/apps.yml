@@ -12,7 +12,6 @@
 # Third-party repos to enable. Known keys: rpmfusion, vscode, docker, ghostty
 # (definitions live in roles/repos/tasks/<OsFamily>.yml). Ignored on macOS.
 extra_repos:
-  - docker
   - vscode
   - ghostty                # community COPR on Fedora
   - rpmfusion              # codecs and drivers on Fedora
@@ -32,18 +31,11 @@ packages:
   - fontconfig             # fc-cache, used by the fonts role
   - git-delta              # nicer git diffs (configured by the git role)
   - pciutils               # lspci, used to detect GPUs
-  - podman
+  - podman                 # containers (Docker isn't installed; podman runs the same images)
   # VS Code comes from Microsoft's repo rather than Flathub: the Flatpak's
   # sandbox gets in the way of terminals, SDKs and language servers.
   - code
   - ghostty                # terminal; a cask on macOS
-  # Docker Engine (from the docker repo above). On macOS these are skipped
-  # and Docker Desktop comes from the "docker-desktop" cask instead.
-  - docker-ce
-  - docker-ce-cli
-  - containerd.io
-  - docker-buildx-plugin
-  - docker-compose-plugin
 
 # GNOME add-ons, skipped on other desktops (Sway, KDE) and on macOS.
 gnome_packages:
@@ -89,11 +81,6 @@ package_name_map:
     pciutils: ""
     code: ""
     ghostty: ""
-    docker-ce: ""
-    docker-ce-cli: ""
-    containerd.io: ""
-    docker-buildx-plugin: ""
-    docker-compose-plugin: ""
 
 # ------------------------------------------------------- GUI apps (Linux)
 # GUI apps from Flathub (use the app ID from flathub.org).
@@ -115,7 +102,6 @@ casks:
   - tailscale-app
   - tigervnc-viewer        # VNC client for wayvnc on a Sway machine
   - spotify
-  - docker-desktop
   - vlc
   - steam
   - visual-studio-code
@@ -192,12 +178,10 @@ multimedia_enabled: true
 
 # ------------------------------------------------------------ Linux system
 # systemd services to enable and start.
-services_enabled:
-  - docker
+services_enabled: []
 
 # Extra groups for your user. Takes effect after logging out and back in.
-user_groups:
-  - docker
+user_groups: []
 
 # -------------------------------------------------------- mise + uv
 # mise manages language versions per project (Node, Python, Java, Go...);

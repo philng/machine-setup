@@ -200,7 +200,7 @@ else fail "dry run reports changed=0 failed=0"; fi
 
 log "Checking the result"
 check "nothing waiting for a restart"     'rpm-ostree status --json | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin)[\"deployments\"][0][\"booted\"] else 1)"'
-check "packages layered with rpm-ostree"  'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty docker-ce tailscale'
+check "packages layered with rpm-ostree"  'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty tailscale'
 check "Firefox kept"                     'rpm -q firefox'
 check "GNOME add-ons skipped on Sway"     '! rpm -q gnome-shell-extension-appindicator && ! rpm -q gvfs-goa'
 check "no GNOME Remote Login on Sway"     '! systemctl is-active --quiet gnome-remote-desktop'
@@ -208,9 +208,7 @@ check "wayvnc installed and configured"  'rpm -q wayvnc && grep -qx enable_pam=t
 check "wayvnc starts with Sway"          'test -L .config/systemd/user/graphical-session.target.wants/wayvnc.service'
 check "VNC open to Tailscale only (if firewalld runs)" '! systemctl is-active --quiet firewalld || { r=$(sudo firewall-cmd --list-rich-rules); echo "$r" | grep -q "100.64.0.0/10.*5900" && ! echo "$r" | grep -q "192.168.0.0/16"; }'
 check "podman runs a container"          'podman run --rm quay.io/podman/hello'
-check "docker service is running"        'systemctl is-active --quiet docker'
-check "user is in the docker group"      'id -nG | grep -qw docker'
-check "docker runs a container (no sudo)" 'docker run --rm hello-world'
+check "Docker not installed"             '! rpm -q docker-ce'
 check "Tailscale running"                'systemctl is-active --quiet tailscaled'
 check "zsh is the login shell"           'getent passwd tester | grep -q "/zsh$"'
 check "antidote loads in zsh"            'zsh -ic "type antidote"'

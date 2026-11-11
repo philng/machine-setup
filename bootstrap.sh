@@ -203,7 +203,7 @@ if [ "$PROFILE" = server ]; then
   cat <<'DONE'
 
 ==> Done. What's left to do by hand:
-  - Log out and back in (zsh becomes your shell; docker works without sudo).
+  - Log out and back in (zsh becomes your shell).
   - Check you can still SSH in from your laptop with your key before closing
     this session: password logins are now off, so only keys work.
   - Run `claude` once to sign in to Claude Code.
@@ -222,7 +222,7 @@ else
   cat <<'DONE'
 
 ==> Done. What's left to do by hand:
-  - Log out and back in (zsh becomes your shell; on Linux, docker works without sudo).
+  - Log out and back in (zsh becomes your shell).
   - Sign in to Chrome, Spotify and the Claude app, and to Google Drive
     (on Linux: Settings > Online Accounts > Google).
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.

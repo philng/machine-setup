@@ -43,7 +43,6 @@ $WingetPackages = @(
     'Valve.Steam'
     'Microsoft.VisualStudioCode'
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
-    'Docker.DockerDesktop'
     'RedHat.Podman'
     'Tailscale.Tailscale'
     'TigerVNC.TigerVNC'            # VNC client for wayvnc on a Sway machine
@@ -260,7 +259,7 @@ if ($failed.Count -gt 0) {
 }
 Write-Host @'
 What's left to do by hand:
-  - Open a new terminal so PATH changes take effect (sign out and in if Docker asks).
+  - Open a new terminal so PATH changes take effect.
   - Sign in to Chrome, Spotify, Google Drive and the Claude app.
   - Open JetBrains Toolbox and click Install next to IntelliJ IDEA.
   - Run `claude` once in a terminal to sign in to Claude Code.
