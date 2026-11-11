@@ -1,4 +1,4 @@
-# Server profile (Fedora Server). Loaded over vars/apps.yml by
+# Server profile (Fedora Server or Fedora Sway Atomic). Loaded over vars/apps.yml by
 #   ./bootstrap.sh --profile server [--gui | --headless]
 # Lists here replace the desktop ones. Anything not set here (zsh, vim, mise,
 # Claude Code, codecs, dotfiles, ...) comes from vars/apps.yml unchanged.
@@ -30,11 +30,14 @@ server_packages:
   - fail2ban
 server_gui_packages:
   - fontconfig
-  - python3-psutil
-  - gnome-shell-extension-appindicator
   - code
   - ghostty
   - firefox                # Fedora's own build
+
+# GNOME add-ons (GNOME GUI servers only).
+gnome_packages:
+  - python3-psutil
+  - gnome-shell-extension-appindicator
 
 # Headless: nothing to remove. GUI: the same clean-up as the desktop
 # (only packages that are actually installed get removed).
@@ -62,7 +65,10 @@ flatpaks_remove:
   - org.mozilla.firefox    # Firefox is the dnf package above; avoid a second copy
 
 # GUI-only extras (their roles are skipped on a headless server).
-remote_desktop_enabled: true   # GNOME Remote Login over RDP (port 3389)
+remote_desktop_enabled: true   # GNOME Remote Login (RDP, 3389) or wayvnc on Sway (VNC, 5900)
+# Sway: log in automatically at boot and lock the screen straight away, so
+# there's a session for VNC to show (unlock it with your password).
+remote_desktop_autologin: true
 jetbrains_toolbox_enabled: true
 
 # All updates, not just security fixes, and reboot when an update needs it.

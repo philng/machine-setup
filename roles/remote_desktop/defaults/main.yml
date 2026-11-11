@@ -2,6 +2,9 @@
 remote_desktop_enabled: false
 remote_desktop_port: 3389       # RDP (GNOME)
 remote_desktop_vnc_port: 5900   # VNC (Sway)
+# Sway: log in automatically at boot (and lock the screen straight away), so
+# VNC has a session to show without logging in at the machine first.
+remote_desktop_autologin: false
 # Who may connect (RDP or VNC). By default only Tailscale, never the LAN or the
 # public internet. To also allow your LAN, add its range in vars/local.yml:
 #   remote_desktop_allowed_sources: [100.64.0.0/10, "fd7a:115c:a1e0::/48", 192.168.0.0/16]

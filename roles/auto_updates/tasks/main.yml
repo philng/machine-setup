@@ -65,6 +65,41 @@
         enabled: true
         state: started
 
+    # auto_updates_reboot other than "never" (servers): restart at 4am when
+    # a downloaded update is waiting.
+    - name: Restart into downloaded updates
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        mode: "0644"
+        content: "{{ item.content }}"
+      loop:
+        - name: rpm-ostree-reboot.service
+          content: |
+            [Unit]
+            Description=Restart into a downloaded Fedora Atomic update
+            [Service]
+            Type=oneshot
+            ExecStart=/bin/sh -c 'rpm-ostree status --pending-exit-77 >/dev/null; [ $? -eq 77 ] && systemctl reboot || true'
+        - name: rpm-ostree-reboot.timer
+          content: |
+            [Unit]
+            Description=Restart into a downloaded Fedora Atomic update at 4am
+            [Timer]
+            OnCalendar=*-*-* 04:00
+            [Install]
+            WantedBy=timers.target
+      loop_control:
+        label: "{{ item.name }}"
+      when: auto_updates_reboot != 'never'
+
+    - name: Enable the restart timer
+      ansible.builtin.systemd_service:
+        name: rpm-ostree-reboot.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: auto_updates_reboot != 'never'
+
 - name: Debian/Ubuntu automatic security updates
   ansible.builtin.apt:
     name: unattended-upgrades

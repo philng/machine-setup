@@ -93,6 +93,31 @@
         state: link
         force: "{{ ansible_check_mode }}"
 
+    - name: Lock the screen when Sway starts
+      ansible.builtin.copy:
+        dest: "{{ unit_dir }}/swaylock-at-login.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Lock the screen after an automatic login
+          PartOf=graphical-session.target
+          After=graphical-session.target
+
+          [Service]
+          Type=forking
+          ExecStart=/usr/bin/swaylock -f
+
+          [Install]
+          WantedBy=graphical-session.target
+      when: remote_desktop_autologin | bool
+
+    - name: Turn the screen lock at login on or off  # noqa: risky-file-permissions (a symlink)
+      ansible.builtin.file:
+        src: "{{ unit_dir }}/swaylock-at-login.service"
+        dest: "{{ unit_dir }}/graphical-session.target.wants/swaylock-at-login.service"
+        state: "{{ 'link' if remote_desktop_autologin | bool else 'absent' }}"
+        force: "{{ ansible_check_mode }}"
+
     - name: Find a running Sway session
       ansible.builtin.stat:
         path: "/run/user/{{ ansible_facts.user_uid }}/bus"
@@ -107,3 +132,45 @@
         - wayvnc_bus.stat.exists
       changed_when: true
       failed_when: false
+
+# Automatic login (remote_desktop_autologin, on for servers): gives VNC a
+# session to show after a restart. The screen locks straight away (above).
+- name: Check for SDDM
+  ansible.builtin.stat:
+    path: /usr/bin/sddm
+  register: rd_sddm
+
+- name: Create /etc/sddm.conf.d
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d
+    state: directory
+    mode: "0755"
+  when:
+    - remote_desktop_autologin | bool
+    - rd_sddm.stat.exists
+
+- name: Log in to Sway automatically at boot
+  ansible.builtin.copy:
+    dest: /etc/sddm.conf.d/50-machine-setup-autologin.conf
+    mode: "0644"
+    content: |
+      # Managed by machine-setup (roles/remote_desktop): log in for wayvnc.
+      [Autologin]
+      User={{ target_user }}
+      Session=sway
+  when:
+    - remote_desktop_autologin | bool
+    - rd_sddm.stat.exists
+
+- name: Turn automatic login off
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d/50-machine-setup-autologin.conf
+    state: absent
+  when: not remote_desktop_autologin | bool
+
+- name: Say automatic login isn't set up
+  ansible.builtin.debug:
+    msg: SDDM isn't the login manager here, so automatic login was skipped; log in once after each restart for VNC to work.
+  when:
+    - remote_desktop_autologin | bool
+    - not rd_sddm.stat.exists

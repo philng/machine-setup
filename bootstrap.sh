@@ -209,7 +209,10 @@ if [ "$PROFILE" = server ]; then
   - Run `claude` once to sign in to Claude Code.
   - Run `sudo tailscale up` and open the link it prints to add this machine to
     your tailnet (skip if you set tailscale_authkey).
-  - GUI server: choose a remote desktop user name and password with
+  - Sway server: it logs in automatically at boot with the screen locked.
+    Connect TigerVNC Viewer to this machine's Tailscale name, port 5900, and
+    unlock with your Linux user name and password.
+  - GNOME server: choose a remote desktop user name and password with
       sudo grdctl --system rdp set-credentials <user> <password>
     then connect with any RDP client to this machine's Tailscale name or
     100.x address (RDP only accepts connections over Tailscale). To avoid

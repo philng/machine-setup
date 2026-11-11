@@ -84,7 +84,7 @@ they work straight away. What's different:
 - **Sway and other non-GNOME desktops** skip the GNOME parts: settings, tray
   icon extension and Google Drive in Files. Remote desktop on Sway is wayvnc
   (VNC) instead of GNOME Remote Login (RDP).
-- The server profile is for Fedora Server only.
+- The server profile works here too (see below).
 
 To undo a layered package: `sudo rpm-ostree uninstall <name>`. To put back a
 removed one: `sudo rpm-ostree override reset <name>`.
@@ -98,7 +98,7 @@ run of `bootstrap.sh`, and is loaded last, so any variable in it (`github_user`,
 `git_user_name`, `flatpaks`, `casks`, `ghostty_theme`, ...) wins over the
 defaults.
 
-## Fedora Server
+## Server profile (Fedora Server or Sway Atomic)
 
 ```sh
 ~/machine-setup/bootstrap.sh --profile server            # GUI auto-detected
@@ -121,6 +121,13 @@ sign-in):
   you'll only be able to log in at the console. fail2ban bans
   repeated failed SSH logins, and firewalld leaves only SSH open (plus RDP over
   Tailscale on a GUI server).
+
+On **Sway Atomic**, a server logs in to Sway automatically at boot and locks
+the screen straight away, so VNC (wayvnc) has a session to show: connect with
+TigerVNC Viewer over Tailscale and unlock with your Linux password
+(`remote_desktop_autologin: false` turns this off). Downloaded updates are
+applied by restarting at 4am when one is waiting, and the firewall also closes
+the 1025-65535 port range that Fedora's desktop zone opens.
 
 Before closing the session that ran it, check you can still SSH in with your key.
 
@@ -291,9 +298,9 @@ push to `main`, on the 1st of every month (to catch upstream breakage), and by h
 Actions tab for any branch (optionally with a dotfiles branch to test). After
 `ansible-lint` and `shellcheck` it runs, in parallel:
 
-- the Fedora VM test for the desktop and the headless server profile, each with
-  the repo owner's dotfiles;
-- the Fedora Sway Atomic VM test;
+- the Fedora Sway Atomic VM test for the desktop and the server profile, with
+  the repo owner's dotfiles (plain Fedora's `tests/vm-test.sh` is no longer
+  run in CI, but still works by hand);
 - `tests/mac-test.sh` on a macOS runner;
 - a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.
 

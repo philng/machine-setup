@@ -8,6 +8,7 @@
       ansible.builtin.dnf:
         name: openssh-server
         state: present
+      when: not ostree_booted | default(false)   # part of Fedora Atomic
 
     - name: Start sshd at boot
       ansible.builtin.systemd_service:
@@ -92,6 +93,21 @@
         immediate: true
         state: disabled
       loop: "{{ server_fw_services.stdout.split() | difference(server_firewall_services) }}"
+
+    # Fedora's desktop zone (Atomic desktops) opens ports 1025-65535.
+    - name: List open ports
+      ansible.builtin.command: firewall-cmd --permanent --list-ports
+      register: server_fw_ports
+      changed_when: false
+      check_mode: false
+
+    - name: Close open ports
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        permanent: true
+        immediate: true
+        state: disabled
+      loop: "{{ server_fw_ports.stdout.split() }}"
 
 - name: Fail2ban
   when: server_fail2ban | bool
