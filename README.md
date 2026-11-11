@@ -111,6 +111,25 @@ systemctl reboot
 ~/machine-setup/bootstrap.sh            # then the per-user setup, as usual
 ```
 
+**NVIDIA machines** use `:desktop-nvidia`, which has NVIDIA's driver built in
+for the image's kernel (plus the kernel arguments that keep nouveau away and
+`--unsupported-gpu` for Sway). With Secure Boot on, the driver must be signed by
+a key the machine trusts, and the key must stay the same from build to build:
+
+```sh
+# once, on any machine with openssl:
+openssl req -new -x509 -newkey rsa:2048 -nodes -days 36500 -subj "/CN=machine-setup akmods" \
+  -outform DER -keyout akmods.key -out akmods.der
+gh secret set AKMODS_KEY < akmods.key
+base64 -w0 akmods.der | gh secret set AKMODS_CERT
+# once, on the NVIDIA machine after rebasing (asks for a one-time password,
+# then confirm it in the blue MOK screen on the next boot):
+sudo mokutil --import /etc/pki/akmods/certs/public_key.der
+```
+
+Then keep `akmods.key` somewhere safe and off the machine. Without the secrets,
+the image still builds but the driver only loads with Secure Boot off.
+
 The playbook finds the packages already installed and layers nothing. Packages
 layered earlier stay layered (`rpm-ostree status` lists them; `sudo rpm-ostree
 uninstall <name>` drops ones the image now has). Keep the image's package list

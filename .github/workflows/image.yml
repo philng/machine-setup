@@ -1,7 +1,10 @@
 name: Image
 
 # Builds the Sway Atomic bootc images (bootc/Containerfile) and pushes them to
-#   ghcr.io/<owner>/machine-setup-sway:desktop  and  :server
+#   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
+# For Secure Boot on the NVIDIA image, add the repository secrets AKMODS_KEY
+# (PEM private key) and AKMODS_CERT (base64 of the DER certificate); see
+# bootc/nvidia.sh.
 # weekly (to pick up Fedora's updates), when bootc/ changes on main, and by
 # hand. (Pull requests test them in test.yml: a VM built from the image.)
 on:
@@ -27,8 +30,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [desktop, server]
-    name: build (${{ matrix.profile }})
+        include:
+          - { tag: desktop, profile: desktop, nvidia: "false" }
+          - { tag: desktop-nvidia, profile: desktop, nvidia: "true" }
+          - { tag: server, profile: server, nvidia: "false" }
+    name: build (${{ matrix.tag }})
     steps:
       - uses: actions/checkout@v4
 
@@ -36,19 +42,31 @@ jobs:
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
 
       - name: Build
+        env:
+          AKMODS_KEY: ${{ secrets.AKMODS_KEY }}
+          AKMODS_CERT: ${{ secrets.AKMODS_CERT }}
         run: |
+          secrets=()
+          if [ "${{ matrix.nvidia }}" = true ] && [ -n "$AKMODS_KEY" ] && [ -n "$AKMODS_CERT" ]; then
+            umask 077
+            printf '%s\n' "$AKMODS_KEY" > "$RUNNER_TEMP/akmods_key"
+            printf '%s' "$AKMODS_CERT" | base64 -d > "$RUNNER_TEMP/akmods_cert"
+            secrets=(--secret "id=akmods_key,src=$RUNNER_TEMP/akmods_key" --secret "id=akmods_cert,src=$RUNNER_TEMP/akmods_cert")
+          fi
           IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
           DATE="$(date +%Y%m%d)"
           printf 'IMAGE=%s\nDATE=%s\n' "$IMAGE" "$DATE" >> "$GITHUB_ENV"
           sudo podman build --pull=newer -f bootc/Containerfile \
-            --build-arg PROFILE=${{ matrix.profile }} \
-            -t "$IMAGE:${{ matrix.profile }}" \
-            -t "$IMAGE:${{ matrix.profile }}-$DATE" .
+            --build-arg PROFILE=${{ matrix.profile }} --build-arg NVIDIA=${{ matrix.nvidia }} \
+            ${secrets[@]+"${secrets[@]}"} \
+            -t "$IMAGE:${{ matrix.tag }}" \
+            -t "$IMAGE:${{ matrix.tag }}-$DATE" .
+          rm -f "$RUNNER_TEMP/akmods_key" "$RUNNER_TEMP/akmods_cert"
 
       - name: Push
         env:
           TOKEN: ${{ github.token }}
         run: |
           echo "$TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          sudo podman push "$IMAGE:${{ matrix.profile }}"
-          sudo podman push "$IMAGE:${{ matrix.profile }}-$DATE"
+          sudo podman push "$IMAGE:${{ matrix.tag }}"
+          sudo podman push "$IMAGE:${{ matrix.tag }}-$DATE"

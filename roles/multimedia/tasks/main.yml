@@ -110,7 +110,7 @@
     - name: NVIDIA next steps
       ansible.builtin.debug:
         msg:
-          - "NVIDIA driver layered. Restart to use it."
+          - "NVIDIA driver installed (on the desktop-nvidia image it's built in). Restart if it was just added."
           - "If Secure Boot is on, enroll the akmods key first: sudo mokutil --import /etc/pki/akmods/certs/public_key.der"
       when: "'NVIDIA' in gpus.stdout"
 
