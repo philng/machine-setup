@@ -120,8 +120,8 @@ a key the machine trusts, and the key must stay the same from build to build:
 # once, on any machine with openssl:
 openssl req -new -x509 -newkey rsa:2048 -nodes -days 36500 -subj "/CN=machine-setup akmods" \
   -outform DER -keyout akmods.key -out akmods.der
-gh secret set AKMODS_KEY < akmods.key
-base64 -w0 akmods.der | gh secret set AKMODS_CERT
+gh secret set AKMODS_KEY -R <owner>/machine-setup < akmods.key
+base64 -i akmods.der | tr -d '\n' | gh secret set AKMODS_CERT -R <owner>/machine-setup
 # once, on the NVIDIA machine after rebasing (asks for a one-time password,
 # then confirm it in the blue MOK screen on the next boot):
 sudo mokutil --import /etc/pki/akmods/certs/public_key.der
