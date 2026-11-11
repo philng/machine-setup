@@ -16,7 +16,20 @@ case "${1:-}" in
   install)
     # No signing key is available in this step: packages' install scripts
     # never see it.
-    dnf -y install "kernel-devel-$kver" akmod-nvidia xorg-x11-drv-nvidia-cuda
+    # akmod-nvidia's install script tries to build the driver right away and
+    # fails in a container ("Not to be used as root"), which makes dnf report
+    # the whole install as failed though every package went in. The real
+    # build is the "build" step below, so allow that one failure and nothing
+    # else.
+    set -- "kernel-devel-$kver" akmod-nvidia xorg-x11-drv-nvidia-cuda
+    dnf -y install "$@" >/tmp/dnf-nvidia.log 2>&1 || true
+    cat /tmp/dnf-nvidia.log
+    rpm -q "$@"
+    if grep -E 'scriptlet failed|^Error' /tmp/dnf-nvidia.log | grep -v 'akmod-nvidia'; then
+      echo "dnf failed for something other than akmod-nvidia's build script" >&2
+      exit 1
+    fi
+    rm -f /tmp/dnf-nvidia.log
     # Sway refuses NVIDIA's driver unless started with --unsupported-gpu.
     sed -i -E 's/^Exec=(\S*sway)$/Exec=\1 --unsupported-gpu/' /usr/share/wayland-sessions/sway.desktop
     grep -q -- '--unsupported-gpu' /usr/share/wayland-sessions/sway.desktop
