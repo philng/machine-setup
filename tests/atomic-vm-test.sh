@@ -8,6 +8,8 @@
 #                                           # another Atomic desktop
 #   tests/atomic-vm-test.sh --keep          # leave the VM running afterwards
 #   tests/atomic-vm-test.sh --profile server  # the server profile
+#   tests/atomic-vm-test.sh --build-image   # start from this repo's bootc image
+#                                           # (bootc/Containerfile, built now)
 #
 # What it does:
 #   1. Builds a VM disk from Fedora's Sway Atomic image once, with
@@ -27,6 +29,7 @@ RELEASE=43
 IMAGE=""
 KEEP=0
 PROFILE=desktop
+BUILD_IMAGE=0
 SSH_PORT="${SSH_PORT:-2224}"
 MEM_MB="${MEM_MB:-4096}"
 CPUS="${CPUS:-2}"
@@ -38,6 +41,7 @@ while [ $# -gt 0 ]; do
     --image) IMAGE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --build-image) BUILD_IMAGE=1; shift ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
     -h|--help) sed -n '3,21p' "$0"; exit 0 ;;
@@ -45,6 +49,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 IMAGE="${IMAGE:-quay.io/fedora-ostree-desktops/sway-atomic:$RELEASE}"
+UPSTREAM="$IMAGE"
 case "$PROFILE" in desktop|server) ;; *) echo "--profile must be desktop or server" >&2; exit 2 ;; esac
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -82,6 +87,13 @@ trap cleanup EXIT
 KEY="$CACHE/atomic_id_ed25519"
 [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
 BASE="$CACHE/$(basename "${IMAGE%%:*}")-${IMAGE##*:}.qcow2"
+if [ "$BUILD_IMAGE" = 1 ]; then
+  log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
+  IMAGE="localhost/machine-setup-sway:$PROFILE"
+  sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
+    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" -t "$IMAGE" "$REPO_DIR"
+  BASE="$WORK/image-base.qcow2"   # always fresh: it's built from this working tree
+fi
 
 if [ ! -f "$BASE" ]; then
   log "Building a VM disk from $IMAGE (once; about 10 minutes)"
@@ -114,7 +126,7 @@ EOF
   sudo chown "$(id -u):$(id -g)" "$BASE.part"
   mv "$BASE.part" "$BASE"
   # The container images aren't needed any more; free the disk space.
-  sudo podman rmi -f localhost/machine-setup-atomic-test "$IMAGE" "$BIB" >/dev/null 2>&1 || true
+  sudo podman rmi -f localhost/machine-setup-atomic-test "$IMAGE" "$UPSTREAM" "$BIB" >/dev/null 2>&1 || true
 else
   echo "Using cached $BASE"
 fi
@@ -211,7 +223,11 @@ else fail "dry run reports changed=0 failed=0"; fi
 
 log "Checking the result ($PROFILE profile)"
 check "nothing waiting for a restart"     'rpm-ostree status --json | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin)[\"deployments\"][0][\"booted\"] else 1)"'
-check "packages layered with rpm-ostree"  'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty tailscale'
+if [ "$BUILD_IMAGE" = 1 ]; then
+  check "packages come with the image (nothing layered)" 'rpm -q gh code ghostty tailscale wayvnc && ! rpm-ostree status --json | python3 -c "import json,sys; d=json.load(sys.stdin)[\"deployments\"][0]; sys.exit(1 if d.get(\"requested-packages\") else 0)"'
+else
+  check "packages layered with rpm-ostree" 'rpm-ostree status --json | grep -q "\"requested-packages\"" && rpm -q gh code ghostty tailscale'
+fi
 check "Firefox kept"                     'rpm -q firefox'
 check "GNOME add-ons skipped on Sway"     '! rpm -q gnome-shell-extension-appindicator && ! rpm -q gvfs-goa'
 check "no GNOME Remote Login on Sway"     '! systemctl is-active --quiet gnome-remote-desktop'

@@ -1,0 +1,54 @@
+name: Image
+
+# Builds the Sway Atomic bootc images (bootc/Containerfile) and pushes them to
+#   ghcr.io/<owner>/machine-setup-sway:desktop  and  :server
+# weekly (to pick up Fedora's updates), when bootc/ changes on main, and by
+# hand. (Pull requests test them in test.yml: a VM built from the image.)
+on:
+  push:
+    branches: [main]
+    paths: [bootc/**, .github/workflows/image.yml]
+  schedule:
+    - cron: "0 5 * * 2"   # Tuesdays; Fedora's own images update daily
+  workflow_dispatch:
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, server]
+    name: build (${{ matrix.profile }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Build
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
+          DATE="$(date +%Y%m%d)"
+          printf 'IMAGE=%s\nDATE=%s\n' "$IMAGE" "$DATE" >> "$GITHUB_ENV"
+          sudo podman build --pull=newer -f bootc/Containerfile \
+            --build-arg PROFILE=${{ matrix.profile }} \
+            -t "$IMAGE:${{ matrix.profile }}" \
+            -t "$IMAGE:${{ matrix.profile }}-$DATE" .
+
+      - name: Push
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          echo "$TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          sudo podman push "$IMAGE:${{ matrix.profile }}"
+          sudo podman push "$IMAGE:${{ matrix.profile }}-$DATE"

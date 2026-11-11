@@ -1,0 +1,8 @@
+# Ghostty isn't in Fedora's repos yet; the community COPR the Ghostty docs point to.
+[copr-scottames-ghostty]
+name=Copr repo for ghostty owned by scottames
+baseurl=https://download.copr.fedorainfracloud.org/results/scottames/ghostty/fedora-$releasever-$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/scottames/ghostty/pubkey.gpg
+repo_gpgcheck=0

@@ -89,6 +89,33 @@ they work straight away. What's different:
 To undo a layered package: `sudo rpm-ostree uninstall <name>`. To put back a
 removed one: `sudo rpm-ostree override reset <name>`.
 
+### The Sway Atomic image (recommended)
+
+Instead of layering packages on every machine, [`bootc/Containerfile`](bootc/Containerfile)
+builds Fedora Sway Atomic with them already inside: Tailscale, VS Code, Ghostty,
+wayvnc, the CLI tools, Intel video drivers and, for servers, tmux and fail2ban.
+GitHub Actions builds it every Tuesday (and when `bootc/` changes) and pushes
+`ghcr.io/<owner>/machine-setup-sway:desktop` and `:server`, so a machine's normal
+updates bring Fedora's fixes and your packages together, and `rpm-ostree rollback`
+undoes both.
+
+Once, after the first build: make the package public on GitHub (your profile >
+Packages > machine-setup-sway > Package settings > Change visibility), so
+machines can pull it without signing in.
+
+To move a machine onto it (a fresh Sway Atomic install, or one already set up):
+
+```sh
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/<owner>/machine-setup-sway:desktop   # or :server
+systemctl reboot
+~/machine-setup/bootstrap.sh            # then the per-user setup, as usual
+```
+
+The playbook finds the packages already installed and layers nothing. Packages
+layered earlier stay layered (`rpm-ostree status` lists them; `sudo rpm-ostree
+uninstall <name>` drops ones the image now has). Keep the image's package list
+in step with `vars/apps.yml` and `vars/server.yml` when you change them.
+
 ## Making it yours
 
 Nothing in the playbook is tied to one person. Fork the repo, then either edit
@@ -248,6 +275,7 @@ roles/mise            mise + uv
 roles/claude_code     Claude Code CLI (native installer)
 roles/rpm_ostree      package layering and removals on Fedora Atomic
 bootstrap.sh          first-run installer
+bootc/Containerfile   the Sway Atomic image (built by .github/workflows/image.yml)
 tests/vm-test.sh      end-to-end test in a throwaway Fedora VM
 tests/atomic-vm-test.sh  the same in a throwaway Fedora Sway Atomic VM
 tests/mac-test.sh     the macOS checks (CI runner or tests/mac-vm-test.sh)
@@ -298,8 +326,9 @@ push to `main`, on the 1st of every month (to catch upstream breakage), and by h
 Actions tab for any branch (optionally with a dotfiles branch to test). After
 `ansible-lint` and `shellcheck` it runs, in parallel:
 
-- the Fedora Sway Atomic VM test for the desktop and the server profile, with
-  the repo owner's dotfiles (plain Fedora's `tests/vm-test.sh` is no longer
+- the Fedora Sway Atomic VM test for the desktop and the server profile built
+  from this repo's image, plus the desktop on plain Sway Atomic (packages
+  layered by the playbook), with the repo owner's dotfiles (plain Fedora's `tests/vm-test.sh` is no longer
   run in CI, but still works by hand);
 - `tests/mac-test.sh` on a macOS runner;
 - a Windows job that lints `windows/bootstrap.ps1` and checks every winget ID.

@@ -1,0 +1,41 @@
+# Fedora Sway Atomic with this repo's system packages built in, so machines
+# get them (and their updates) as part of the image instead of layering them
+# one by one. Built weekly by .github/workflows/image.yml and pushed to
+#   ghcr.io/<owner>/machine-setup-sway:desktop   and   :server
+# Per-user setup (dotfiles, zsh, mise, Claude Code, Flatpaks, fonts) and
+# machine-specific config (firewall, SSH keys, Tailscale sign-in) still come
+# from the playbook, which finds these packages already installed.
+#
+# Build by hand from the repo root:
+#   podman build -f bootc/Containerfile --build-arg PROFILE=server -t sway:server .
+#
+# Keep the package lists in step with vars/apps.yml and vars/server.yml.
+ARG BASE=quay.io/fedora-ostree-desktops/sway-atomic:43
+FROM ${BASE}
+
+ARG PROFILE=desktop
+
+COPY bootc/files/ /
+
+# RPM Fusion's release RPMs carry its signing keys, so they're installed
+# unverified (over HTTPS); everything after that is checked.
+RUN set -eux; \
+    case "$PROFILE" in desktop|server) ;; *) echo "PROFILE must be desktop or server" >&2; exit 1 ;; esac; \
+    rel="$(rpm -E %fedora)"; \
+    dnf -y install --nogpgcheck \
+      "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm" \
+      "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm"; \
+    pkgs="zsh vim-enhanced gh fzf bat btop eza git-delta pciutils fontconfig \
+          code ghostty tailscale wayvnc \
+          intel-media-driver"; \
+    if [ "$PROFILE" = server ]; then pkgs="$pkgs tmux curl fail2ban"; fi; \
+    dnf -y install $pkgs; \
+    systemctl enable tailscaled.service; \
+    dnf clean all; \
+    rm -rf /var/cache/* /var/lib/dnf /var/log/*
+
+LABEL org.opencontainers.image.title="machine-setup Sway Atomic (${PROFILE})" \
+      org.opencontainers.image.description="Fedora Sway Atomic with machine-setup's packages" \
+      containers.bootc=1
+
+RUN bootc container lint
