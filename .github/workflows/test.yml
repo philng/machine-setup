@@ -31,8 +31,8 @@ jobs:
   #   shared Ansible (site.yml, shared roles, bootstrap.sh...)  macos + Fedora VM tests
   #   vars/apps.yml                          those + windows (bootstrap.ps1 mirrors it)
   #   .github/workflows/                     everything
-  # The Fedora VM tests pull the published image (ghcr.io, built by image.yml
-  # from main) unless the pull request changes bootc/.
+  # The Fedora VM tests boot the prebuilt test disk (ghcr.io, built by
+  # image.yml from main) unless the pull request changes bootc/.
   # Draft pull requests get lint only; marking one ready runs the rest.
   # The schedule and manual runs test everything.
   changes:
@@ -176,8 +176,9 @@ jobs:
             df -h /
           fi
 
-      # Unless the pull request changes bootc/, test the published image
-      # instead of building the same one again (~5 min faster).
+      # Unless the pull request changes bootc/, boot the prebuilt test disk
+      # from image.yml (~11 min faster), or failing that the published image
+      # (~5 min faster), instead of building the same ones again.
       - name: Log in to GHCR
         if: needs.changes.outputs.bootc != 'true'
         env:
@@ -195,7 +196,9 @@ jobs:
                 --github-user ${{ github.repository_owner }}
                 --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }})
           if [ "$PULL" = true ]; then
-            args+=(--pull-image "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway:${{ matrix.profile }}")
+            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
+            args+=(--disk "$image-testdisk:${{ matrix.profile }}"
+                   --pull-image "$image:${{ matrix.profile }}")
           fi
           tests/atomic-vm-test.sh "${args[@]}"
 
