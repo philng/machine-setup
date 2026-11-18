@@ -1,8 +1,9 @@
 name: Test
 
+# No run on pushes to main: pull requests only merge (automerge below) after
+# this workflow passes, so a run after the merge would repeat the same tests.
+# The monthly schedule catches upstream breakage.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
@@ -22,11 +23,24 @@ permissions:
   contents: read
 
 jobs:
-  # Pull requests that only touch docs skip the slow tests (and still merge).
+  # Works out which tests a pull request needs, from the files it changes:
+  #   docs only (*.md, LICENSE, .gitignore)  no tests (and still merges)
+  #   windows/                               the windows job
+  #   Mac-only roles and tests               the macos job
+  #   bootc/, Linux-only roles and tests     the Fedora VM tests (+ NVIDIA build for bootc/)
+  #   shared Ansible (site.yml, shared roles, bootstrap.sh...)  macos + Fedora VM tests
+  #   vars/apps.yml                          those + windows (bootstrap.ps1 mirrors it)
+  #   .github/workflows/                     everything
+  # Draft pull requests get lint only; marking one ready runs the rest.
+  # The schedule and manual runs test everything.
   changes:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      windows: ${{ steps.diff.outputs.windows }}
+      mac: ${{ steps.diff.outputs.mac }}
+      linux: ${{ steps.diff.outputs.linux }}
+      nvidia: ${{ steps.diff.outputs.nvidia }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,17 +49,37 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          DRAFT: ${{ github.event.pull_request.draft }}
         run: |
+          set_all() { for k in code windows mac linux nvidia; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo code=true >> "$GITHUB_OUTPUT"; exit 0
+            set_all true; exit 0
           fi
-          changed=$(git diff --name-only "$BASE...$HEAD")
-          echo "$changed"
-          if echo "$changed" | grep -qvE '(\.md$|^LICENSE$|^\.gitignore$)'; then
-            echo code=true >> "$GITHUB_OUTPUT"
-          else
-            echo code=false >> "$GITHUB_OUTPUT"
+          code=false windows=false mac=false linux=false nvidia=false
+          while read -r f; do
+            [ -z "$f" ] && continue
+            echo "$f"
+            case "$f" in
+              *.md|LICENSE|.gitignore) continue ;;
+            esac
+            code=true
+            case "$f" in
+              windows/*) windows=true ;;
+              roles/casks/*|roles/macos/*|roles/packages/*|tests/mac-*.sh) mac=true ;;
+              bootc/*) linux=true nvidia=true ;;
+              roles/flatpak/*|roles/tailscale/*|roles/remote_desktop/*|roles/jetbrains_toolbox/*|roles/server/*) linux=true ;;
+              tests/atomic-vm-test.sh|tests/vm-desktop-vars.yml|vars/server.yml) linux=true ;;
+              .github/workflows/*) windows=true mac=true linux=true nvidia=true ;;
+              vars/apps.yml) windows=true mac=true linux=true ;;   # windows/bootstrap.ps1 mirrors it
+              *) mac=true linux=true ;;   # shared Ansible (site.yml, roles, bootstrap.sh...)
+            esac
+          done <<< "$(git diff --name-only "$BASE...$HEAD")"
+          if [ "$DRAFT" = true ]; then
+            echo "Draft pull request: lint only."
+            windows=false mac=false linux=false nvidia=false
           fi
+          printf 'code=%s\nwindows=%s\nmac=%s\nlinux=%s\nnvidia=%s\n' \
+            "$code" "$windows" "$mac" "$linux" "$nvidia" | tee -a "$GITHUB_OUTPUT"
 
   lint:
     needs: changes
@@ -64,7 +98,7 @@ jobs:
 
   macos:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.mac == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -74,7 +108,7 @@ jobs:
 
   windows:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +125,7 @@ jobs:
 
   fedora-atomic-vm:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.linux == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     strategy:
@@ -138,7 +172,7 @@ jobs:
   # (the driver compiles for the image's kernel).
   image-nvidia:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.nvidia == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -152,8 +186,8 @@ jobs:
   # for PRs labelled "no-automerge", and for PRs from forks.
   automerge:
     needs: [changes, lint, macos, windows, fedora-atomic-vm, image-nvidia]
-    # always() so it still runs when docs-only PRs skip the tests; it merges
-    # only if nothing failed or was cancelled.
+    # always() so it still runs when tests are skipped (docs-only or
+    # single-platform PRs); it merges only if nothing failed or was cancelled.
     if: >-
       always()
       && !contains(needs.*.result, 'failure')
