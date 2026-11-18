@@ -128,10 +128,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # bootc-image-builder's mounts fail with "permission denied" on the
-      # runner image of 2026-11-11 without this (see test.yml).
-      - name: Relax AppArmor for bootc-image-builder
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      # Without this, bootc-image-builder can't mount on the runner image of
+      # 2026-11-11 (see test.yml).
+      - name: Let bootc-image-builder use bwrap
+        run: |
+          for f in $(sudo grep -lE '^profile (unpriv_)?bwrap' /etc/apparmor.d/* 2>/dev/null); do
+            echo "Unloading $f"; sudo apparmor_parser -R "$f" || true
+          done
 
       - name: Log in to GHCR
         env:
