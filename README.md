@@ -136,8 +136,11 @@ cp cosign.pub ~/machine-setup/bootc/cosign.pub              # commit and push th
 
 Keep `cosign.key` in your password manager and delete the local copy. Builds
 then sign every image, and the image itself carries the public key and a rule
-requiring that signature. After a machine is on an image built with the key,
-switch it to checking signatures (once):
+requiring that signature. The next `./bootstrap.sh` run on a machine that's on
+an image built with the key switches it to checking signatures, from the next
+restart on (`rpm-ostree status` then shows `ostree-image-signed:`). A machine's
+very first download can't be checked, since the rule comes with the image. To
+switch by hand instead:
 
 ```sh
 sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/<owner>/machine-setup-sway:desktop

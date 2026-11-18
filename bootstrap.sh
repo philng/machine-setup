@@ -122,6 +122,36 @@ if [ "$OS" != Darwin ]; then
     echo "==> Restart (systemctl reboot), then run ./bootstrap.sh again to finish."
     exit 0
   fi
+
+  # Signed images (bootc/cosign.pub, see the README): the first switch above
+  # can't check signatures, because the rule that says which key to trust
+  # comes with the image. Once the machine runs an image that has the rule
+  # for the image it tracks, track it as signed, so every update from then on
+  # must carry a valid signature. Takes effect from the next restart.
+  # (deployments[0] is the deployment the next restart boots.)
+  next="$(rpm-ostree status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployments"][0].get("container-image-reference", ""))')"
+  if [[ "$next" == ostree-unverified-registry:* ]]; then
+    ref="${next#ostree-unverified-registry:}"
+    if python3 - "${ref%:*}" <<'PY'
+import json, sys
+policy = json.load(open("/etc/containers/policy.json"))
+rule = policy.get("transports", {}).get("docker", {}).get(sys.argv[1], [])
+sys.exit(0 if any(r.get("type") == "sigstoreSigned" for r in rule) else 1)
+PY
+    then
+      if [ -n "$DRY_RUN" ]; then
+        echo "==> Dry run: would switch this machine to signature-checked updates of $ref"
+      else
+        echo "==> Switching to signature-checked updates of $ref"
+        if sudo rpm-ostree rebase "ostree-image-signed:docker://$ref"; then
+          echo "    (used from the next restart)"
+        else
+          echo "WARNING: $ref failed its signature check, so this machine still takes" >&2
+          echo "         unchecked updates. Check the Image workflow's Sign step." >&2
+        fi
+      fi
+    fi
+  fi
 fi
 
 echo "==> Installing Ansible collections"

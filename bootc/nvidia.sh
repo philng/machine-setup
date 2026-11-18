@@ -47,7 +47,7 @@ case "${1:-}" in
     fi
     akmods --force --kernels "$kver"
     ls "/usr/lib/modules/$kver/extra/nvidia/"nvidia.ko*   # fails if the build failed
-    # Never ship a private signing key; the image is public.
+    # Never ship a private signing key in the image.
     rm -rf /etc/pki/akmods/private/*
     dnf -y remove "kernel-devel-$kver"
     ;;
