@@ -143,13 +143,17 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # bootc-image-builder's mounts started failing with "permission denied"
-      # on the runner image of 2026-11-11. Let it make user namespaces and
-      # mounts (this runner is thrown away after the job).
-      - name: Relax AppArmor for bootc-image-builder
+      # The runner image of 2026-11-11 (Ubuntu with podman 5.7) loads the
+      # AppArmor profile that confines bwrap ("unpriv_bwrap"). It also catches
+      # the bwrap that bootc-image-builder runs inside its container, which
+      # then can't mount ("permission denied"). Unload it: this runner is
+      # thrown away after the job.
+      - name: Let bootc-image-builder use bwrap
         run: |
-          uname -r; podman --version
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          for f in $(sudo grep -lE '^profile (unpriv_)?bwrap' /etc/apparmor.d/* 2>/dev/null); do
+            echo "Unloading $f"; sudo apparmor_parser -R "$f" || true
+          done
+          sudo aa-status | grep -i bwrap || echo "No bwrap AppArmor profiles loaded."
 
       - name: Install QEMU
         run: |

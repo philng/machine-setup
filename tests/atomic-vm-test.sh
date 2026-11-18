@@ -109,10 +109,8 @@ mountpoint = "/"
 minsize = "40 GiB"
 EOF
   sudo podman build -q -t localhost/machine-setup-sway-test "$build"
-  # apparmor=unconfined: Ubuntu's container AppArmor profile blocks the mounts
-  # bootc-image-builder makes (GitHub's runner image of 2026-11-11 onwards).
   sudo podman run --rm --privileged --pull=newer \
-    --security-opt label=type:unconfined_t --security-opt apparmor=unconfined \
+    --security-opt label=type:unconfined_t \
     -v "$build/config.toml:/config.toml:ro" \
     -v "$build/output:/output" \
     -v /var/lib/containers/storage:/var/lib/containers/storage \
