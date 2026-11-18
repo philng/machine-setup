@@ -4,6 +4,9 @@ name: Image
 #   ghcr.io/<owner>/machine-setup-sway:desktop, :desktop-nvidia and :server
 # weekly (to pick up Fedora's updates), when bootc/ changes on main, and by
 # hand. (Pull requests test them in test.yml: a VM built from the image.)
+# Then builds a test VM disk from the desktop and server images and pushes it
+# to ghcr.io/<owner>/machine-setup-sway-testdisk:desktop and :server, so pull
+# requests that don't change bootc/ can boot it instead of building one.
 # Optional repository secrets:
 #   AKMODS_KEY, AKMODS_CERT   sign the NVIDIA driver for Secure Boot (bootc/nvidia.sh)
 #   COSIGN_PRIVATE_KEY, COSIGN_PASSWORD   sign the images (public key: bootc/cosign.pub)
@@ -38,8 +41,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      # Runners have ~145 GB disks with plenty free; only clean up (slow, ~2 min)
+      # if there isn't room for the image and the VM disk.
+      - name: Free disk space if needed
+        run: |
+          df -h /
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 40 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+            df -h /
+          fi
 
       - name: Check for a signing key
         env:
@@ -70,7 +80,7 @@ jobs:
           IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
           DATE="$(date +%Y%m%d)"
           printf 'IMAGE=%s\nDATE=%s\n' "$IMAGE" "$DATE" >> "$GITHUB_ENV"
-          sudo podman build --pull=newer -f bootc/Containerfile \
+          sudo podman build --pull=newer --layers=false -f bootc/Containerfile \
             --build-arg PROFILE=${{ matrix.profile }} --build-arg NVIDIA=${{ matrix.nvidia }} \
             --build-arg IMAGE_REPO="$IMAGE" \
             ${secrets[@]+"${secrets[@]}"} \
@@ -102,3 +112,44 @@ jobs:
         run: |
           echo "$TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$IMAGE@$DIGEST"
+
+  # A VM disk for tests/atomic-vm-test.sh --disk, from the image just pushed:
+  # the "tester" user, passwordless sudo and sshd, plus the SSH key to log in
+  # (a throwaway key for a VM only reachable from inside the CI runner).
+  test-disk:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, server]
+    name: test-disk (${{ matrix.profile }})
+    steps:
+      - uses: actions/checkout@v4
+
+      # Without this, bootc-image-builder can't mount on the runner image of
+      # 2026-11-11 (see test.yml).
+      - name: Let bootc-image-builder use bwrap
+        run: |
+          for f in $(sudo grep -lE '^profile (unpriv_)?bwrap' /etc/apparmor.d/* 2>/dev/null); do
+            echo "Unloading $f"; sudo apparmor_parser -R "$f" || true
+          done
+
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ github.token }}
+        run: echo "$TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build the disk
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          tests/atomic-vm-test.sh --profile ${{ matrix.profile }} \
+            --pull-image "$IMAGE:${{ matrix.profile }}" --disk-only "$RUNNER_TEMP/disk"
+
+      - name: Push the disk
+        run: |
+          printf 'FROM scratch\nCOPY disk.qcow2.zst id_ed25519 /\n' > "$RUNNER_TEMP/disk/Containerfile"
+          sudo podman build -t "$IMAGE-testdisk:${{ matrix.profile }}" "$RUNNER_TEMP/disk"
+          sudo podman push "$IMAGE-testdisk:${{ matrix.profile }}"

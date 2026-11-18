@@ -7,9 +7,18 @@
 #   tests/atomic-vm-test.sh --image <base image>   # another base than Sway Atomic
 #   tests/atomic-vm-test.sh --keep          # leave the VM running afterwards
 #   tests/atomic-vm-test.sh --profile server  # the server profile
+#   tests/atomic-vm-test.sh --pull-image ghcr.io/<you>/machine-setup-sway:desktop
+#                                           # test a published image instead of
+#                                           # building one (builds if the pull fails)
+#   tests/atomic-vm-test.sh --disk ghcr.io/<you>/machine-setup-sway-testdisk:desktop
+#                                           # boot a prebuilt test disk (made with
+#                                           # --disk-only); builds if that fails
+#   tests/atomic-vm-test.sh --disk-only DIR # only build the test disk, into DIR
+#                                           # (disk.qcow2.zst and its SSH key)
 #
 # What it does:
-#   1. Builds this repo's image (bootc/Containerfile) for the profile, then a VM
+#   1. Builds this repo's image (bootc/Containerfile) for the profile (or pulls
+#      the one given with --pull-image), then a VM
 #      disk from it with bootc-image-builder. The only test additions: a
 #      "tester" user with an SSH key and passwordless sudo, and sshd on.
 #   2. Boots a fresh VM from a disposable copy-on-write disk.
@@ -25,6 +34,9 @@ RELEASE=43
 IMAGE=""
 KEEP=0
 PROFILE=desktop
+PULL_IMAGE=""
+DISK=""
+DISK_ONLY=""
 SSH_PORT="${SSH_PORT:-2224}"
 MEM_MB="${MEM_MB:-4096}"
 CPUS="${CPUS:-2}"
@@ -36,9 +48,12 @@ while [ $# -gt 0 ]; do
     --image) IMAGE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --pull-image) PULL_IMAGE="$2"; shift 2 ;;
+    --disk) DISK="$2"; shift 2 ;;
+    --disk-only) DISK_ONLY="$2"; shift 2 ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
-    -h|--help) sed -n '3,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '3,31p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -57,18 +72,23 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ------------------------------------------------------------ preflight
 [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || die "Needs a Linux x86_64 host."
-[ -w /dev/kvm ] || die "/dev/kvm is not usable. Enable virtualization, or add yourself to the 'kvm' group."
-for cmd in podman qemu-system-x86_64 qemu-img ssh ssh-keygen; do
+for cmd in podman ssh-keygen zstd; do
   command -v "$cmd" >/dev/null || die "Missing '$cmd'."
 done
-if (exec 3<>/dev/tcp/127.0.0.1/"$SSH_PORT") 2>/dev/null; then
-  die "Port $SSH_PORT is in use (another test VM?). Use SSH_PORT=2225 $0"
+if [ -z "$DISK_ONLY" ]; then
+  [ -w /dev/kvm ] || die "/dev/kvm is not usable. Enable virtualization, or add yourself to the 'kvm' group."
+  for cmd in qemu-system-x86_64 qemu-img ssh; do
+    command -v "$cmd" >/dev/null || die "Missing '$cmd'."
+  done
+  if (exec 3<>/dev/tcp/127.0.0.1/"$SSH_PORT") 2>/dev/null; then
+    die "Port $SSH_PORT is in use (another test VM?). Use SSH_PORT=2225 $0"
+  fi
 fi
 
 cleanup() {
   if [ "$KEEP" = 1 ] && [ -f "$PIDFILE" ]; then
     log "VM left running (--keep)"
-    echo "  ssh:  ssh -i $CACHE/atomic_id_ed25519 -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null tester@127.0.0.1"
+    echo "  ssh:  ssh -i $KEY -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null tester@127.0.0.1"
     echo "  stop: kill \$(cat $PIDFILE) && rm -rf $WORK"
     return
   fi
@@ -79,16 +99,52 @@ trap cleanup EXIT
 
 # ------------------------------------------------------------ disk image
 KEY="$CACHE/atomic_id_ed25519"
-[ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
-log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
+BASE="$WORK/image-base.qcow2"
 IMAGE="localhost/machine-setup-sway:$PROFILE"
-sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
-  --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
-  --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
-  -t "$IMAGE" "$REPO_DIR"
-BASE="$WORK/image-base.qcow2"   # built fresh from this working tree every time
 
-{
+# A prebuilt disk comes as a container image holding disk.qcow2.zst and the
+# SSH key for its "tester" user.
+have_disk=0
+if [ -n "$DISK" ]; then
+  log "Downloading the prebuilt test disk $DISK"
+  if sudo podman pull "$DISK" && mnt="$(sudo podman image mount "$DISK")" \
+     && sudo zstd -q -d -T0 "$mnt/disk.qcow2.zst" -o "$BASE" \
+     && sudo cp "$mnt/id_ed25519" "$WORK/id_ed25519" \
+     && sudo chown "$(id -u):$(id -g)" "$BASE" "$WORK/id_ed25519"; then
+    chmod 600 "$WORK/id_ed25519"
+    KEY="$WORK/id_ed25519"
+    IMAGE="$DISK"
+    have_disk=1
+  else
+    echo "Couldn't use $DISK; building the disk instead."
+    rm -f "$BASE"
+  fi
+  sudo podman image unmount "$DISK" >/dev/null 2>&1 || true
+  sudo podman rmi -f "$DISK" >/dev/null 2>&1 || true
+fi
+
+[ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
+pulled=0
+if [ "$have_disk" = 1 ]; then
+  :
+elif [ -n "$PULL_IMAGE" ]; then
+  log "Pulling $PULL_IMAGE (instead of building it)"
+  if sudo podman pull "$PULL_IMAGE" && sudo podman tag "$PULL_IMAGE" "$IMAGE"; then
+    pulled=1
+    UPSTREAM="$PULL_IMAGE"   # removed with the other images below
+  else
+    echo "Couldn't pull $PULL_IMAGE; building the image instead."
+  fi
+fi
+if [ "$have_disk" = 0 ] && [ "$pulled" = 0 ]; then
+  log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
+  # --layers=false: one commit at the end, not one per step (~20 s each here).
+  sudo podman build --pull=newer --layers=false -f "$REPO_DIR/bootc/Containerfile" \
+    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
+    --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
+    -t "$IMAGE" "$REPO_DIR"
+fi
+if [ "$have_disk" = 0 ]; then
   log "Building a VM disk from $IMAGE (about 10 minutes)"
   build="$WORK/build"
   mkdir -p "$build/output"
@@ -120,7 +176,16 @@ EOF
   mv "$BASE.part" "$BASE"
   # The container images aren't needed any more; free the disk space.
   sudo podman rmi -f localhost/machine-setup-sway-test "$IMAGE" "$UPSTREAM" "$BIB" >/dev/null 2>&1 || true
-}
+fi
+
+if [ -n "$DISK_ONLY" ]; then
+  log "Saving the test disk and its SSH key to $DISK_ONLY"
+  mkdir -p "$DISK_ONLY"
+  zstd -q -T0 -3 "$BASE" -o "$DISK_ONLY/disk.qcow2.zst"
+  cp "$KEY" "$DISK_ONLY/id_ed25519"
+  ls -lh "$DISK_ONLY"
+  exit 0
+fi
 
 # ------------------------------------------------------------ VM
 qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$WORK/disk.qcow2"
