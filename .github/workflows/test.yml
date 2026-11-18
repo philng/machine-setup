@@ -143,6 +143,14 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # bootc-image-builder's mounts started failing with "permission denied"
+      # on the runner image of 2026-11-11. Let it make user namespaces and
+      # mounts (this runner is thrown away after the job).
+      - name: Relax AppArmor for bootc-image-builder
+        run: |
+          uname -r; podman --version
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
       - name: Install QEMU
         run: |
           sudo apt-get update
@@ -159,6 +167,10 @@ jobs:
           tests/atomic-vm-test.sh --profile ${{ matrix.profile }}
           --github-user ${{ github.repository_owner }}
           --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }}
+
+      - name: Show kernel messages
+        if: failure()
+        run: sudo dmesg | tail -40
 
       - name: Upload logs
         if: failure()
