@@ -21,14 +21,23 @@ COPY bootc/files/ /
 COPY bootc/packages/ /tmp/packages/
 COPY bootc/server/ /tmp/server/
 
-# RPM Fusion's release RPMs carry its signing keys, so they're installed
-# unverified (over HTTPS); everything after that is checked.
+# RPM Fusion's release RPMs carry its signing keys and repo files, and come
+# through a mirror redirector, so they're checked against RPM Fusion's keys as
+# packaged by Fedora (distribution-gpg-keys, from Fedora's signed repos)
+# before they're installed. Everything after that is checked by dnf.
 RUN set -eux; \
     case "$PROFILE" in desktop|server) ;; *) echo "PROFILE must be desktop or server" >&2; exit 1 ;; esac; \
     rel="$(rpm -E %fedora)"; \
-    dnf -y install --nogpgcheck \
-      "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm" \
-      "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm"; \
+    dnf -y install distribution-gpg-keys; \
+    mkdir /tmp/rpmfusion; \
+    for repo in free nonfree; do \
+      rpmkeys --import "/usr/share/distribution-gpg-keys/rpmfusion/RPM-GPG-KEY-rpmfusion-$repo-fedora-$rel"; \
+      pkg="/tmp/rpmfusion/rpmfusion-$repo-release-$rel.noarch.rpm"; \
+      curl -fsSL --retry 3 -o "$pkg" "https://mirrors.rpmfusion.org/$repo/fedora/rpmfusion-$repo-release-$rel.noarch.rpm"; \
+      rpmkeys --checksig --define '_pkgverify_level all' "$pkg"; \
+      rpmkeys --checksig -v "$pkg" | grep -qiE 'signature.*: OK$'; \
+    done; \
+    dnf -y install /tmp/rpmfusion/*.rpm; \
     lists=/tmp/packages/common.txt; \
     if [ "$PROFILE" = server ]; then lists="$lists /tmp/packages/server.txt"; fi; \
     dnf -y install $(sed -e 's/#.*//' $lists); \
@@ -39,7 +48,7 @@ RUN set -eux; \
       firewall-offline-cmd --set-default-zone=server; \
     fi; \
     dnf clean all; \
-    rm -rf /tmp/packages /tmp/server /var/cache/* /var/lib/dnf /var/log/*
+    rm -rf /tmp/packages /tmp/server /tmp/rpmfusion /var/cache/* /var/lib/dnf /var/log/*
 
 # Nerd Fonts (bootc/fonts.txt), for every user.
 COPY bootc/fonts.txt /tmp/fonts.txt
