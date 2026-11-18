@@ -31,6 +31,8 @@ jobs:
   #   shared Ansible (site.yml, shared roles, bootstrap.sh...)  macos + Fedora VM tests
   #   vars/apps.yml                          those + windows (bootstrap.ps1 mirrors it)
   #   .github/workflows/                     everything
+  # The Fedora VM tests pull the published image (ghcr.io, built by image.yml
+  # from main) unless the pull request changes bootc/.
   # Draft pull requests get lint only; marking one ready runs the rest.
   # The schedule and manual runs test everything.
   changes:
@@ -41,6 +43,7 @@ jobs:
       mac: ${{ steps.diff.outputs.mac }}
       linux: ${{ steps.diff.outputs.linux }}
       nvidia: ${{ steps.diff.outputs.nvidia }}
+      bootc: ${{ steps.diff.outputs.bootc }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,11 +54,11 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
           DRAFT: ${{ github.event.pull_request.draft }}
         run: |
-          set_all() { for k in code windows mac linux nvidia; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
+          set_all() { for k in code windows mac linux nvidia bootc; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             set_all true; exit 0
           fi
-          code=false windows=false mac=false linux=false nvidia=false
+          code=false windows=false mac=false linux=false nvidia=false bootc=false
           while read -r f; do
             [ -z "$f" ] && continue
             echo "$f"
@@ -66,7 +69,7 @@ jobs:
             case "$f" in
               windows/*) windows=true ;;
               roles/casks/*|roles/macos/*|roles/packages/*|tests/mac-*.sh) mac=true ;;
-              bootc/*) linux=true nvidia=true ;;
+              bootc/*) linux=true nvidia=true bootc=true ;;
               roles/flatpak/*|roles/tailscale/*|roles/remote_desktop/*|roles/jetbrains_toolbox/*|roles/server/*) linux=true ;;
               tests/atomic-vm-test.sh|tests/vm-desktop-vars.yml|vars/server.yml) linux=true ;;
               .github/workflows/*) windows=true mac=true linux=true nvidia=true ;;
@@ -78,8 +81,8 @@ jobs:
             echo "Draft pull request: lint only."
             windows=false mac=false linux=false nvidia=false
           fi
-          printf 'code=%s\nwindows=%s\nmac=%s\nlinux=%s\nnvidia=%s\n' \
-            "$code" "$windows" "$mac" "$linux" "$nvidia" | tee -a "$GITHUB_OUTPUT"
+          printf 'code=%s\nwindows=%s\nmac=%s\nlinux=%s\nnvidia=%s\nbootc=%s\n' \
+            "$code" "$windows" "$mac" "$linux" "$nvidia" "$bootc" | tee -a "$GITHUB_OUTPUT"
 
   lint:
     needs: changes
@@ -133,6 +136,9 @@ jobs:
       matrix:
         profile: [desktop, server]
     name: fedora-atomic-vm (${{ matrix.profile }})
+    permissions:
+      contents: read
+      packages: read   # pull the published image
     steps:
       - uses: actions/checkout@v4
 
@@ -160,17 +166,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils
 
-      # Building the VM disk needs room for the image and the disk (~20 GB).
-      - name: Free disk space
+      # Runners have ~145 GB disks with plenty free; only clean up (slow, ~2 min)
+      # if there isn't room for the image and the VM disk.
+      - name: Free disk space if needed
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 40 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+            df -h /
+          fi
 
+      # Unless the pull request changes bootc/, test the published image
+      # instead of building the same one again (~5 min faster).
+      - name: Log in to GHCR
+        if: needs.changes.outputs.bootc != 'true'
+        env:
+          TOKEN: ${{ github.token }}
+        run: echo "$TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      # The runner has 4 CPUs and 16 GB; the host mostly waits on the VM.
       - name: Run VM test
-        run: >-
-          tests/atomic-vm-test.sh --profile ${{ matrix.profile }}
-          --github-user ${{ github.repository_owner }}
-          --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }}
+        env:
+          CPUS: 4
+          MEM_MB: 8192
+          PULL: ${{ needs.changes.outputs.bootc != 'true' }}
+        run: |
+          args=(--profile ${{ matrix.profile }}
+                --github-user ${{ github.repository_owner }}
+                --dotfiles-version ${{ inputs.dotfiles_version || 'HEAD' }})
+          if [ "$PULL" = true ]; then
+            args+=(--pull-image "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway:${{ matrix.profile }}")
+          fi
+          tests/atomic-vm-test.sh "${args[@]}"
 
       - name: Show kernel messages
         if: failure()
@@ -193,10 +220,17 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      # Runners have ~145 GB disks with plenty free; only clean up (slow, ~2 min)
+      # if there isn't room for the image and the VM disk.
+      - name: Free disk space if needed
+        run: |
+          df -h /
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 40 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+            df -h /
+          fi
       - name: Build the desktop-nvidia image
-        run: sudo podman build --pull=newer -f bootc/Containerfile --build-arg NVIDIA=true -t machine-setup-sway:desktop-nvidia .
+        run: sudo podman build --pull=newer --layers=false -f bootc/Containerfile --build-arg NVIDIA=true -t machine-setup-sway:desktop-nvidia .
 
   # Merges a pull request once every test above passes. Skipped for drafts,
   # for PRs labelled "no-automerge", and for PRs from forks.

@@ -7,9 +7,13 @@
 #   tests/atomic-vm-test.sh --image <base image>   # another base than Sway Atomic
 #   tests/atomic-vm-test.sh --keep          # leave the VM running afterwards
 #   tests/atomic-vm-test.sh --profile server  # the server profile
+#   tests/atomic-vm-test.sh --pull-image ghcr.io/<you>/machine-setup-sway:desktop
+#                                           # test a published image instead of
+#                                           # building one (builds if the pull fails)
 #
 # What it does:
-#   1. Builds this repo's image (bootc/Containerfile) for the profile, then a VM
+#   1. Builds this repo's image (bootc/Containerfile) for the profile (or pulls
+#      the one given with --pull-image), then a VM
 #      disk from it with bootc-image-builder. The only test additions: a
 #      "tester" user with an SSH key and passwordless sudo, and sshd on.
 #   2. Boots a fresh VM from a disposable copy-on-write disk.
@@ -25,6 +29,7 @@ RELEASE=43
 IMAGE=""
 KEEP=0
 PROFILE=desktop
+PULL_IMAGE=""
 SSH_PORT="${SSH_PORT:-2224}"
 MEM_MB="${MEM_MB:-4096}"
 CPUS="${CPUS:-2}"
@@ -36,9 +41,10 @@ while [ $# -gt 0 ]; do
     --image) IMAGE="$2"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --pull-image) PULL_IMAGE="$2"; shift 2 ;;
     --github-user) GITHUB_USER="$2"; shift 2 ;;
     --dotfiles-version) DOTFILES_VERSION="$2"; shift 2 ;;
-    -h|--help) sed -n '3,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -80,12 +86,25 @@ trap cleanup EXIT
 # ------------------------------------------------------------ disk image
 KEY="$CACHE/atomic_id_ed25519"
 [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
-log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
 IMAGE="localhost/machine-setup-sway:$PROFILE"
-sudo podman build --pull=newer -f "$REPO_DIR/bootc/Containerfile" \
-  --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
-  --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
-  -t "$IMAGE" "$REPO_DIR"
+pulled=0
+if [ -n "$PULL_IMAGE" ]; then
+  log "Pulling $PULL_IMAGE (instead of building it)"
+  if sudo podman pull "$PULL_IMAGE" && sudo podman tag "$PULL_IMAGE" "$IMAGE"; then
+    pulled=1
+    UPSTREAM="$PULL_IMAGE"   # removed with the other images below
+  else
+    echo "Couldn't pull $PULL_IMAGE; building the image instead."
+  fi
+fi
+if [ "$pulled" = 0 ]; then
+  log "Building this repo's bootc image ($PROFILE) from $UPSTREAM"
+  # --layers=false: one commit at the end, not one per step (~20 s each here).
+  sudo podman build --pull=newer --layers=false -f "$REPO_DIR/bootc/Containerfile" \
+    --build-arg BASE="$UPSTREAM" --build-arg PROFILE="$PROFILE" \
+    --build-arg IMAGE_REPO=ghcr.io/machine-setup-test/machine-setup-sway \
+    -t "$IMAGE" "$REPO_DIR"
+fi
 BASE="$WORK/image-base.qcow2"   # built fresh from this working tree every time
 
 {

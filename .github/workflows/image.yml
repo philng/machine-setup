@@ -38,8 +38,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      # Runners have ~145 GB disks with plenty free; only clean up (slow, ~2 min)
+      # if there isn't room for the image and the VM disk.
+      - name: Free disk space if needed
+        run: |
+          df -h /
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 40 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+            df -h /
+          fi
 
       - name: Check for a signing key
         env:
@@ -70,7 +77,7 @@ jobs:
           IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/machine-setup-sway"
           DATE="$(date +%Y%m%d)"
           printf 'IMAGE=%s\nDATE=%s\n' "$IMAGE" "$DATE" >> "$GITHUB_ENV"
-          sudo podman build --pull=newer -f bootc/Containerfile \
+          sudo podman build --pull=newer --layers=false -f bootc/Containerfile \
             --build-arg PROFILE=${{ matrix.profile }} --build-arg NVIDIA=${{ matrix.nvidia }} \
             --build-arg IMAGE_REPO="$IMAGE" \
             ${secrets[@]+"${secrets[@]}"} \
