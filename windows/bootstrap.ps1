@@ -41,6 +41,7 @@ $WingetPackages = @(
     'Spotify.Spotify'
     'VideoLAN.VLC'
     'Valve.Steam'
+    'Discord.Discord'
     'Microsoft.VisualStudioCode'
     'JetBrains.Toolbox'            # install IntelliJ from Toolbox with one click
     'RedHat.Podman'
