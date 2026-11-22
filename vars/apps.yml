@@ -30,6 +30,7 @@ flatpaks:
   - com.spotify.Client
   - org.videolan.VLC       # Media Player Classic is Windows-only
   - com.valvesoftware.Steam
+  - com.discordapp.Discord
 
 # Also remove the Flatpak versions, in case they were installed that way.
 flatpaks_remove:
@@ -45,6 +46,7 @@ casks:
   - spotify
   - vlc
   - steam
+  - discord
   - visual-studio-code
   - ghostty
   - jetbrains-toolbox      # then install IntelliJ IDEA from its window
